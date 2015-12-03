@@ -35,6 +35,7 @@ ninja-build -j2
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysctl.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/security/limits.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/scylla/
@@ -42,6 +43,7 @@ mkdir -p $RPM_BUILD_ROOT%{_docdir}/scylla/
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 mkdir -p $RPM_BUILD_ROOT%{_prefix}/lib/scylla/
 
+install -m644 dist/common/sysctl.d/99-scylla.conf $RPM_BUILD_ROOT%{_sysconfdir}/sysctl.d/
 install -m644 dist/common/sysconfig/scylla-server $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/
 install -m644 dist/common/limits.d/scylla.conf $RPM_BUILD_ROOT%{_sysconfdir}/security/limits.d/
 install -d -m755 $RPM_BUILD_ROOT%{_sysconfdir}/scylla
@@ -62,6 +64,7 @@ install -m644 licenses/* $RPM_BUILD_ROOT%{_docdir}/scylla/licenses/
 install -d -m755 $RPM_BUILD_ROOT%{_sharedstatedir}/scylla/
 install -d -m755 $RPM_BUILD_ROOT%{_sharedstatedir}/scylla/data
 install -d -m755 $RPM_BUILD_ROOT%{_sharedstatedir}/scylla/commitlog
+install -d -m755 $RPM_BUILD_ROOT%{_sharedstatedir}/scylla/coredump
 install -d -m755 $RPM_BUILD_ROOT%{_prefix}/lib/scylla/swagger-ui
 cp -r swagger-ui/dist $RPM_BUILD_ROOT%{_prefix}/lib/scylla/swagger-ui
 install -d -m755 $RPM_BUILD_ROOT%{_prefix}/lib/scylla/api
@@ -84,6 +87,12 @@ fi
 if [ -f /etc/sysconfig/scylla-server ] && [ `grep IFNAME -r /etc/sysconfig/scylla-server|wc -l` -eq 0 ]; then
     echo "# ethernet device name" >> /etc/sysconfig/scylla-server
     echo "IFNAME=eth0" >> /etc/sysconfig/scylla-server
+fi
+if [ -d /usr/lib/scylla/scylla-ami ]; then
+    echo "# setup as AMI instance" >> /etc/sysconfig/scylla-server
+    echo "AMI=no" >> /etc/sysconfig/scylla-server
+    echo "# do not upgrade Scylla packages on AMI startup" >> /etc/sysconfig/scylla-server
+    echo "AMI_KEEP_VERSION=no" >> /etc/sysconfig/scylla-server
 fi
 
 %post
@@ -113,6 +122,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 
+%{_sysconfdir}/sysctl.d/99-scylla.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/scylla-server
 %{_sysconfdir}/security/limits.d/scylla.conf
 %attr(0755,root,root) %dir %{_sysconfdir}/scylla
@@ -128,6 +138,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_prefix}/lib/scylla/scylla_prepare
 %{_prefix}/lib/scylla/scylla_run
 %{_prefix}/lib/scylla/scylla_stop
+%{_prefix}/lib/scylla/scylla_save_coredump
+%{_prefix}/lib/scylla/scylla_coredump_setup
+%{_prefix}/lib/scylla/scylla_raid_setup
+%{_prefix}/lib/scylla/scylla_sysconfig_setup
 %{_prefix}/lib/scylla/posix_net_conf.sh
 %{_prefix}/lib/scylla/dpdk_nic_bind.py
 %{_prefix}/lib/scylla/dpdk_nic_bind.pyc
@@ -137,6 +151,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/data
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/commitlog
+%attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/coredump
 
 %changelog
 * Tue Jul 21 2015 Takuya ASADA <syuu@cloudius-systems.com>
