@@ -1,0 +1,16 @@
+#!/bin/sh
+
+. /etc/os-release
+
+if [ "$NAME" = "Ubuntu" ]; then
+    apt-get install -y apport-noui
+else
+    cat << EOS > /etc/systemd/coredump.conf
+[Coredump]
+Storage=external
+Compress=yes
+ProcessSizeMax=16G
+ExternalSizeMax=16G
+EOS
+    systemctl daemon-reload
+fi
