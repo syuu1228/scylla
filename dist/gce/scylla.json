@@ -1,0 +1,42 @@
+{
+  "builders": [
+    {
+      "type": "googlecompute",
+      "project_id": "{{user `project_id`}}",
+      "source_image": "{{user `source_image`}}",
+      "zone": "{{user `zone`}}",
+      "account_file": "{{user `account_file`}}",
+      "ssh_username": "{{user `ssh_username`}}",
+      "ssh_timeout": "5m",
+      "image_name": "{{user `ami_prefix`}}scylla-{{timestamp}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "files/",
+      "destination": "/home/{{user `ssh_username`}}/"
+    },
+    {
+      "type": "file",
+      "source": "../../scripts/scylla_install_pkg",
+      "destination": "/home/{{user `ssh_username`}}/scylla_install_pkg"
+    },
+    {
+      "type": "shell",
+      "inline": [
+         "sudo /home/{{user `ssh_username`}}/scylla-ami/scylla_install_ami {{ user `install_args` }}"
+       ]
+    }
+  ],
+  "variables": {
+    "project_id": "",
+    "source_image": "",
+    "zone": "",
+    "account_file": "",
+    "install_args": "",
+    "ami_prefix": "",
+    "source_ami": "",
+    "ssh_username": ""
+  }
+}
