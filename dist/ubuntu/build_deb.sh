@@ -85,6 +85,7 @@ if [ "$DISTRIBUTION" = "Debian" ]; then
     sed -i -e "s/@@BUILD_DEPENDS@@/libsystemd-dev, g++-5, libunwind-dev/g" debian/control
     sed -i -e "s#@@INSTALL@@##g" debian/scylla-server.install
     sed -i -e "s#@@HKDOTTIMER@@#dist/common/systemd/scylla-housekeeping.timer /lib/systemd/system#g" debian/scylla-server.install
+    sed -i -e "s#@@FTDOTTIMER@@#dist/common/systemd/scylla-fstrim.timer /lib/systemd/system#g" debian/scylla-server.install
     sed -i -e "s#@@SYSCTL@@#dist/ubuntu/sysctl.d/99-scylla.conf etc/sysctl.d#g" debian/scylla-server.install
 elif [ "$VERSION_ID" = "14.04" ]; then
     sed -i -e "s/@@REVISION@@/0ubuntu1/g" debian/changelog
@@ -93,6 +94,7 @@ elif [ "$VERSION_ID" = "14.04" ]; then
     sed -i -e "s/@@BUILD_DEPENDS@@/g++-5, libunwind8-dev/g" debian/control
     sed -i -e "s#@@INSTALL@@#dist/ubuntu/sudoers.d/scylla etc/sudoers.d#g" debian/scylla-server.install
     sed -i -e "s#@@HKDOTTIMER@@##g" debian/scylla-server.install
+    sed -i -e "s#@@FTDOTTIMER@@##g" debian/scylla-server.install
     sed -i -e "s#@@SYSCTL@@#dist/ubuntu/sysctl.d/99-scylla.conf etc/sysctl.d#g" debian/scylla-server.install
 else
     sed -i -e "s/@@REVISION@@/0ubuntu1/g" debian/changelog
@@ -101,6 +103,7 @@ else
     sed -i -e "s/@@BUILD_DEPENDS@@/libsystemd-dev, g++, libunwind-dev/g" debian/control
     sed -i -e "s#@@INSTALL@@##g" debian/scylla-server.install
     sed -i -e "s#@@HKDOTTIMER@@#dist/common/systemd/scylla-housekeeping.timer /lib/systemd/system#g" debian/scylla-server.install
+    sed -i -e "s#@@FTDOTTIMER@@#dist/common/systemd/scylla-fstrim.timer /lib/systemd/system#g" debian/scylla-server.install
     sed -i -e "s#@@SYSCTL@@##g" debian/scylla-server.install
 fi
 if [ $DIST -gt 0 ]; then
@@ -118,6 +121,7 @@ cp dist/common/systemd/scylla-server.service.in debian/scylla-server.service
 sed -i -e "s#@@SYSCONFDIR@@#/etc/default#g" debian/scylla-server.service
 cp dist/common/systemd/scylla-housekeeping.service debian/scylla-server.scylla-housekeeping.service
 cp dist/common/systemd/node-exporter.service debian/scylla-server.node-exporter.service
+cp dist/common/systemd/scylla-fstrim.service debian/scylla-server.scylla-fstrim.service
 
 if [ "$VERSION_ID" = "14.04" ] && [ $REBUILD -eq 0 ]; then
     if [ ! -f /etc/apt/sources.list.d/scylla-3rdparty-trusty.list ]; then

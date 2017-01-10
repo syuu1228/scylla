@@ -16,5 +16,6 @@ dist/common/bin/scyllatop usr/bin
 dist/common/sbin/* usr/sbin
 @@ADDHKCFG@@
 @@HKDOTTIMER@@
+@@FTDOTTIMER@@
 @@INSTALL@@
 @@SYSCTL@@
