@@ -63,6 +63,9 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/security/limits.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/collectd.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/scylla/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/scylla.d/
+%if 0%{?rhel}
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/modprobe.d/
+%endif
 mkdir -p $RPM_BUILD_ROOT%{_sysctldir}/
 mkdir -p $RPM_BUILD_ROOT%{_docdir}/scylla/
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
@@ -73,6 +76,9 @@ install -m644 dist/common/limits.d/scylla.conf $RPM_BUILD_ROOT%{_sysconfdir}/sec
 install -m644 dist/common/collectd.d/scylla.conf $RPM_BUILD_ROOT%{_sysconfdir}/collectd.d/
 install -m644 dist/common/scylla.d/*.conf $RPM_BUILD_ROOT%{_sysconfdir}/scylla.d/
 install -m644 dist/common/sysctl.d/*.conf $RPM_BUILD_ROOT%{_sysctldir}/
+%if 0%{?rhel}
+install -m644 dist/common/modprobe.d/*.conf $RPM_BUILD_ROOT%{_sysconfdir}/modprobe.d/
+%endif
 install -d -m755 $RPM_BUILD_ROOT%{_sysconfdir}/scylla
 install -m644 conf/scylla.yaml $RPM_BUILD_ROOT%{_sysconfdir}/scylla/
 install -m644 conf/cassandra-rackdc.properties $RPM_BUILD_ROOT%{_sysconfdir}/scylla/
@@ -119,6 +125,12 @@ getent passwd scylla || /usr/sbin/useradd -g scylla -s /sbin/nologin -r -d %{_sh
 if [ -f /etc/systemd/coredump.conf ];then
     /usr/lib/scylla/scylla_coredump_setup
 fi
+# Write modprobe.d params when module already loaded
+%if 0%{?rhel}
+if [ -e /sys/module/raid0/parameters/devices_discard_performance ]; then
+    echo Y > /sys/module/raid0/parameters/devices_discard_performance
+fi
+%endif
 %systemd_post scylla-server.service
 
 %preun server
@@ -146,6 +158,9 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/collectd.d/scylla.conf
 %attr(0755,root,root) %dir %{_sysconfdir}/scylla.d
 %config(noreplace) %{_sysconfdir}/scylla.d/*.conf
+%if 0%{?rhel}
+%config(noreplace) %{_sysconfdir}/modprobe.d/*.conf
+%endif
 %{_docdir}/scylla/README.md
 %{_docdir}/scylla/README-DPDK.md
 %{_docdir}/scylla/NOTICE.txt
