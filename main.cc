@@ -111,19 +111,15 @@ static logging::log_level to_loglevel(sstring level) {
 
 static future<> disk_sanity(sstring path, bool developer_mode) {
     return check_direct_io_support(path).then([path, developer_mode] {
-        return file_system_at(path).then([path, developer_mode] (auto fs) {
-            if (fs != fs_type::xfs) {
-                if (!developer_mode) {
-                    startlog.error("{} is not on XFS. This is a non-supported setup, and performance is expected to be very bad.\n"
-                            "For better performance, placing your data on XFS-formatted directories is required."
-                            " To override this error, see the developer_mode configuration option.", path);
-                    throw std::runtime_error(sprint("invalid configuration: path \"%s\" on unsupported filesystem", path));
-                } else {
-                    startlog.warn("{} is not on XFS. This is a non-supported setup, and performance is expected to be very bad.\n"
-                            "For better performance, placing your data on XFS-formatted directories is strongly recommended", path);
-                }
-            }
-        });
+        if (!developer_mode) {
+            startlog.error("{} is not on supported filesystem. This is a non-supported setup, and performance is expected to be very bad.\n"
+                    "For better performance, placing your data on supported filesystem is required."
+                    " To override this error, see the developer_mode configuration option.", path);
+            throw std::runtime_error(sprint("invalid configuration: path \"%s\" on unsupported filesystem", path));
+        } else {
+            startlog.warn("{} is not on supported filesystem. This is a non-supported setup, and performance is expected to be very bad.\n"
+                    "For better performance, placing your data on supported filesystem is strongly recommended", path);
+        }
     });
 };
 
