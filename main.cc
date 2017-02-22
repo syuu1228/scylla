@@ -149,21 +149,7 @@ public:
         return io_check(recursive_touch_directory, path).then_wrapped([this, path] (future<> f) {
             try {
                 f.get();
-                return utils::file_lock::acquire(path + "/.lock").then([this](utils::file_lock lock) {
-                   _locks.emplace_back(std::move(lock));
-                }).handle_exception([path](auto ep) {
-                    // only do this because "normal" unhandled exception exit in seastar
-                    // _drops_ system_error message ("what()") and thus does not quite deliver
-                    // the relevant info to the user
-                    try {
-                        std::rethrow_exception(ep);
-                    } catch (std::exception& e) {
-                        startlog.error("Could not initialize {}: {}", path, e.what());
-                        throw;
-                    } catch (...) {
-                        throw;
-                    }
-                });
+                return lock(path);
             } catch (...) {
                 startlog.error("Directory '{}' cannot be initialized. Tried to do it but failed with: {}", path, std::current_exception());
                 throw;
@@ -180,6 +166,40 @@ public:
     future<> touch_and_lock(_Range&& r) {
         return touch_and_lock(std::begin(r), std::end(r));
     }
+
+    future<> lock(sstring path) {
+        try {
+            return utils::file_lock::acquire(path + "/.lock").then([this](utils::file_lock lock) {
+               _locks.emplace_back(std::move(lock));
+            }).handle_exception([path](auto ep) {
+                // only do this because "normal" unhandled exception exit in seastar
+                // _drops_ system_error message ("what()") and thus does not quite deliver
+                // the relevant info to the user
+                try {
+                    std::rethrow_exception(ep);
+                } catch (std::exception& e) {
+                    startlog.error("Could not initialize {}: {}", path, e.what());
+                    throw;
+                } catch (...) {
+                    throw;
+                }
+            });
+        } catch (...) {
+            startlog.error("Directory '{}' cannot be initialized. Tried to do it but failed with: {}", path, std::current_exception());
+            throw;
+        }
+    }
+    template<typename _Iter>
+    future<> lock_many(_Iter i, _Iter e) {
+        return parallel_for_each(i, e, [this](sstring path) {
+           return lock(std::move(path));
+        });
+    }
+    template<typename _Range>
+    future<> lock_many(_Range&& r) {
+        return lock_many(std::begin(r), std::end(r));
+    }
+
 private:
     std::vector<utils::file_lock>
         _locks;
@@ -450,10 +470,15 @@ int main(int ac, char** av) {
                 });
             });
             verify_seastar_io_scheduler(opts.count("max-io-requests"), db.local().get_config().developer_mode()).get();
-            supervisor::notify("creating data directories");
-            dirs.touch_and_lock(db.local().get_config().data_file_directories()).get();
-            supervisor::notify("creating commitlog directory");
-            dirs.touch_and_lock(db.local().get_config().commitlog_directory()).get();
+            if (opts.count("developer-mode")) {
+                supervisor::notify("creating data directories");
+                dirs.touch_and_lock(db.local().get_config().data_file_directories()).get();
+                supervisor::notify("creating commitlog directory");
+                dirs.touch_and_lock(db.local().get_config().commitlog_directory()).get();
+            } else {
+                dirs.lock_many(db.local().get_config().data_file_directories()).get();
+                dirs.lock(db.local().get_config().commitlog_directory()).get();
+            }
             supervisor::notify("verifying data and commitlog directories");
             std::unordered_set<sstring> directories;
             directories.insert(db.local().get_config().data_file_directories().cbegin(),

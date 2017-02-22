@@ -132,7 +132,6 @@ if  [ -d /tmp/%{name}-%{version}-%{release} ]; then
     cp -a /tmp/%{name}-%{version}-%{release}/* /etc/scylla/
     rm -rf /tmp/%{name}-%{version}-%{release}/
 fi
-ln -sfT /etc/scylla /var/lib/scylla/conf
 systemctl restart collectd
 
 %clean
