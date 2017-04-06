@@ -40,6 +40,10 @@ if [ ! -f pyparsing-2.0.3-2.fc23.src.rpm ]; then
    wget -nv https://kojipkgs.fedoraproject.org//packages/pyparsing/2.0.3/2.fc23/src/pyparsing-2.0.3-2.fc23.src.rpm
 fi
 
+if [ ! -f python-psutil-4.3.0-2.fc25.src.rpm ]; then
+   wget -nv https://kojipkgs.fedoraproject.org/packages/python-psutil/4.3.0/2.fc25/src/python-psutil-4.3.0-2.fc25.src.rpm
+fi
+
 cd -
 
 sudo yum install -y cryptopp cryptopp-devel jsoncpp jsoncpp-devel lz4 lz4-devel yaml-cpp yaml-cpp-devel thrift thrift-devel scons gtest gtest-devel python34
@@ -52,6 +56,7 @@ sudo yum install -y asciidoc
 sudo yum install -y gettext
 sudo yum install -y rpm-devel python34-devel guile-devel readline-devel ncurses-devel expat-devel texlive-collection-latexrecommended xz-devel libselinux-devel
 sudo yum install -y dos2unix
+sudo yum install -y python34-mock python34-setuptools
 
 if [ ! -f $RPMBUILD/RPMS/noarch/scylla-env-1.0-1.el7*.noarch.rpm ]; then
     cd dist/common/dep
@@ -110,6 +115,14 @@ if [ ! -f $RPMBUILD/RPMS/noarch/python34-pyparsing-2.0.3-2.el7*.noarch.rpm ]; th
     rpmbuild --define "_topdir $RPMBUILD" -ba $RPMBUILD/SPECS/pyparsing.spec
 fi
 do_install python34-pyparsing-2.0.3-2.el7*.noarch.rpm
+
+if [ ! -f $RPMBUILD/RPMS/x86_64/python34-psutil-4.3.0-2.el7*.x86_64.rpm ]; then
+    rpm --define "_topdir $RPMBUILD" -ivh build/srpms/python-psutil-4.3.0-2.fc25.src.rpm
+    patch $RPMBUILD/SPECS/python-psutil.spec < dist/redhat/centos_dep/python-psutil.diff
+    rpmbuild --define "_topdir $RPMBUILD" -ba $RPMBUILD/SPECS/python-psutil.spec
+fi
+do_install python34-psutil-4.3.0-2.el7*.x86_64.rpm
+
 
 if [ ! -f $RPMBUILD/RPMS/noarch/scylla-antlr3-tool-3.5.2-1.el7*.noarch.rpm ]; then
    mkdir build/scylla-antlr3-tool-3.5.2
