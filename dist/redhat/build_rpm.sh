@@ -98,6 +98,7 @@ else
 fi
 
 if [ "$ID" = "fedora" ]; then
+    sed -i -e "s/@@PYTHON3@@/python3/g" $RPMBUILD/SPECS/scylla.spec
     if [ $JOBS -gt 0 ]; then
         rpmbuild -bs --define "_topdir $RPMBUILD" --define "_smp_mflags -j$JOBS" $RPMBUILD/SPECS/scylla.spec
     else
@@ -105,6 +106,7 @@ if [ "$ID" = "fedora" ]; then
     fi
     mock rebuild --resultdir=`pwd`/build/rpms $RPMBUILD/SRPMS/scylla-$VERSION*.src.rpm
 else
+    sed -i -e "s/@@PYTHON3@@/python34/g" $RPMBUILD/SPECS/scylla.spec
     sudo yum-builddep -y  $RPMBUILD/SPECS/scylla.spec
     . /etc/profile.d/scylla.sh
     if [ $JOBS -gt 0 ]; then
