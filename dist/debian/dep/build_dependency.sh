@@ -1,6 +1,11 @@
 #!/bin/bash -e
 
 . /etc/os-release
+install_deps() {
+    echo Y | sudo mk-build-deps
+    sudo gdebi -n ./*-build-deps*.deb
+}
+
 DISTRIBUTION=`lsb_release -i|awk '{print $3}'`
 CODENAME=`lsb_release -c|awk '{print $2}'`
 
@@ -21,7 +26,7 @@ if [ "$VERSION_ID" = "14.04" ] || [ "$DISTRIBUTION" = "Debian" ]; then
         cp -a dist/debian/dep/antlr3-3.5.2/* build/antlr3-3.5.2
         cd build/antlr3-3.5.2
         wget -nv http://www.antlr3.org/download/antlr-3.5.2-complete-no-st3.jar
-        echo Y | sudo mk-build-deps -i -r
+        install_deps
         debuild -r fakeroot --no-tgz-check -us -uc
         cd -
     fi
@@ -49,7 +54,7 @@ if [ "$VERSION_ID" = "14.04" ] || [ "$DISTRIBUTION" = "Debian" ]; then
         cd -
         cd build/gdb-7.11
         patch -p0 < ../../dist/debian/dep/gdb.diff
-        echo Y | sudo mk-build-deps -i -r
+        install_deps
         debuild -r fakeroot --no-tgz-check -us -uc
         cd -
     fi
@@ -66,7 +71,7 @@ if [ ! -f build/antlr3-c++-dev_*.deb ]; then
     cd -
     cp -a dist/debian/dep/antlr3-c++-dev-3.5.2/debian build/antlr3-c++-dev-3.5.2
     cd build/antlr3-c++-dev-3.5.2
-    echo Y | sudo mk-build-deps -i -r
+    install_deps
     debuild -r fakeroot --no-tgz-check -us -uc
     cd -
 fi
@@ -80,7 +85,7 @@ if [ ! -f build/libthrift0_*.deb ]; then
     tar xpf thrift-0.9.3.tar.gz
     cd thrift-0.9.3
     patch -p0 < ../../dist/debian/dep/thrift.diff
-    echo Y | sudo mk-build-deps -i -r
+    install_deps
     debuild -r fakeroot --no-tgz-check -us -uc
     cd ../..
 fi
