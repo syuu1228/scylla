@@ -123,26 +123,12 @@ cp dist/debian/control.in debian/control
 cp dist/debian/scylla-server.install.in debian/scylla-server.install
 cp dist/debian/scylla-conf.preinst.in debian/scylla-conf.preinst
 sed -i -e "s/@@VERSION@@/$SCYLLA_VERSION/g" debian/scylla-conf.preinst
-if [ "$TARGET" = "jessie" ]; then
+if [ "$TARGET" = "jessie" ] || [ "$TARGET" = "stretch" ]; then
     cp dist/debian/scylla-server.cron.d debian/
     sed -i -e "s/@@REVISION@@/1~$TARGET/g" debian/changelog
     sed -i -e "s/@@DH_INSTALLINIT@@//g" debian/rules
     sed -i -e "s#@@COMPILER@@#/opt/scylladb/bin/g++-7#g" debian/rules
     sed -i -e "s/@@BUILD_DEPENDS@@/libsystemd-dev, scylla-gcc72-g++-7, libunwind-dev, scylla-antlr35, scylla-libthrift010-dev, scylla-antlr35-c++-dev, scylla-libboost-program-options163-dev, scylla-libboost-filesystem163-dev, scylla-libboost-system163-dev, scylla-libboost-thread163-dev, scylla-libboost-test163-dev/g" debian/control
-    sed -i -e "s/@@DEPENDS@@//g" debian/control
-    sed -i -e "s#@@INSTALL@@##g" debian/scylla-server.install
-    sed -i -e "s#@@HKDOTTIMER_D@@#dist/common/systemd/scylla-housekeeping-daily.timer /lib/systemd/system#g" debian/scylla-server.install
-    sed -i -e "s#@@HKDOTTIMER_R@@#dist/common/systemd/scylla-housekeeping-restart.timer /lib/systemd/system#g" debian/scylla-server.install
-    sed -i -e "s#@@FTDOTTIMER@@#dist/common/systemd/scylla-fstrim.timer /lib/systemd/system#g" debian/scylla-server.install
-    sed -i -e "s#@@SYSCTL@@#dist/debian/sysctl.d/99-scylla.conf etc/sysctl.d#g" debian/scylla-server.install
-    sed -i -e "s#@@SCRIPTS_SAVE_COREDUMP@@#dist/debian/scripts/scylla_save_coredump usr/lib/scylla#g" debian/scylla-server.install
-    sed -i -e "s#@@SCRIPTS_DELAY_FSTRIM@@#dist/debian/scripts/scylla_delay_fstrim usr/lib/scylla#g" debian/scylla-server.install
-elif [ "$TARGET" = "stretch" ]; then
-    cp dist/debian/scylla-server.cron.d debian/
-    sed -i -e "s/@@REVISION@@/1~$TARGET/g" debian/changelog
-    sed -i -e "s/@@DH_INSTALLINIT@@//g" debian/rules
-    sed -i -e "s#@@COMPILER@@#/opt/scylladb/bin/g++-7#g" debian/rules
-    sed -i -e "s/@@BUILD_DEPENDS@@/libsystemd-dev, scylla-gcc72-g++-7, libunwind-dev, antlr3, scylla-libthrift010-dev, scylla-antlr35-c++-dev, libboost-program-options1.62-dev, libboost-filesystem1.62-dev, libboost-system1.62-dev, libboost-thread1.62-dev, libboost-test1.62-dev/g" debian/control
     sed -i -e "s/@@DEPENDS@@//g" debian/control
     sed -i -e "s#@@INSTALL@@##g" debian/scylla-server.install
     sed -i -e "s#@@HKDOTTIMER_D@@#dist/common/systemd/scylla-housekeeping-daily.timer /lib/systemd/system#g" debian/scylla-server.install
