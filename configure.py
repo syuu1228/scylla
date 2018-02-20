@@ -770,6 +770,7 @@ warnings = [
     '-Wno-noexcept-type',
     '-Wno-nonnull-compare',
     '-Wno-sign-compare',
+    '-Wno-uninitialized',
     ]
 
 warnings = [w
