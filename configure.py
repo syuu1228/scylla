@@ -768,7 +768,8 @@ warnings = [
     '-Wno-misleading-indentation',
     '-Wno-overflow',
     '-Wno-noexcept-type',
-    '-Wno-nonnull-compare'
+    '-Wno-nonnull-compare',
+    '-Wno-sign-compare',
     ]
 
 warnings = [w
