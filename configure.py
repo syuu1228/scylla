@@ -822,15 +822,15 @@ def setup_first_pkg_of_list(pkglist):
             return True
     return False
 
-for pkglist in optional_packages:
-    if isinstance(pkglist, str):
-        pkglist = [pkglist]
-    if not setup_first_pkg_of_list(pkglist):
-        if len(pkglist) == 1:
-            print('Missing optional package {pkglist[0]}'.format(**locals()))
-        else:
-            alternatives = ':'.join(pkglist[1:])
-            print('Missing optional package {pkglist[0]} (or alteratives {alternatives})'.format(**locals()))
+#for pkglist in optional_packages:
+#    if isinstance(pkglist, str):
+#        pkglist = [pkglist]
+#    if not setup_first_pkg_of_list(pkglist):
+#        if len(pkglist) == 1:
+#            print('Missing optional package {pkglist[0]}'.format(**locals()))
+#        else:
+#            alternatives = ':'.join(pkglist[1:])
+#            print('Missing optional package {pkglist[0]} (or alteratives {alternatives})'.format(**locals()))
 
 if not try_compile(compiler=args.cxx, source='#include <boost/version.hpp>'):
     print('Boost not installed.  Please install {}.'.format(pkgname("boost-devel")))
@@ -956,6 +956,8 @@ os.makedirs(outdir, exist_ok = True)
 do_sanitize = True
 if args.static:
     do_sanitize = False
+    user_cflags += " -static -Wl,--allow-multiple-definition"
+    user_ldflags += " -static -Wl,--allow-multiple-definition"
 
 with open(buildfile, 'w') as f:
     f.write(textwrap.dedent('''\
