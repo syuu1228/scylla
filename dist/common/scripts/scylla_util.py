@@ -37,6 +37,15 @@ def curl(url):
             if (retries >= max_retries):
                 raise
 
+def is_debian_variant():
+    return os.path.exists("/etc/debian_version")
+
+def is_redhat_variant():
+    return os.path.exists("/etc/redhat-release")
+
+def is_gentoo_variant():
+    return os.path.exists("/etc/gentoo-release")
+
 class aws_instance:
     """Describe several aspects of the current AWS instance"""
     def __disk_name(self, dev):

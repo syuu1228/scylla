@@ -82,6 +82,7 @@ install -m644 dist/common/limits.d/scylla.conf -Dt "$retc"/security/limits.d
 install -m644 dist/common/collectd.d/scylla.conf -Dt "$retc"/collectd.d
 install -m644 dist/common/scylla.d/*.conf -Dt "$retc"/scylla.d
 install -m644 dist/common/sysctl.d/*.conf -Dt "$rprefix"/lib/sysctl.d
+install -m644 dist/redhat/sysctl.d/*.conf -Dt "$rprefix"/lib/sysctl.d
 
 SYSCONFDIR="/etc/sysconfig"
 REPOFILES="'/etc/yum.repos.d/scylla*.repo'"
