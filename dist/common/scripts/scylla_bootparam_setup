@@ -53,9 +53,9 @@ if __name__ == '__main__':
             f.write(new)
             f.close()
             if is_debian_variant():
-                subprocess.check_call(["/usr/sbin/update-grub"])
+                subprocess.check_call(["update-grub"])
             else:
-                subprocess.check_call(["/usr/sbin/grub2-mkconfig", "-o", "/boot/grub2/grub.cfg"])
+                subprocess.check_call(["grub2-mkconfig", "-o", "/boot/grub2/grub.cfg"])
 
     if is_ec2() and os.path.exists("/boot/grub/menu.lst"):
         f = open("/boot/grub/menu.lst")
