@@ -23,13 +23,14 @@ import os
 import sys
 import argparse
 import subprocess
+import logging
 import distro
 import shutil
 from scylla_util import is_debian_variant
 
 if __name__ == '__main__':
     if os.getuid() > 0:
-        print('Requires root permission.')
+        logging.error('Requires root permission.')
         sys.exit(1)
     parser = argparse.ArgumentParser(description='Optimize coredump settings for Scylla.')
     parser.add_argument('--dump-to-raiddir', action='store_true', default=False,
@@ -68,7 +69,7 @@ ExternalSizeMax=1024G
             os.mkdir('/var/lib/scylla/coredump')
             os.symlink('/var/lib/scylla/coredump', '/var/lib/systemd/coredump')
         subprocess.check_call(['/bin/systemctl', 'daemon-reload'])
-        if is_debian_variant() == True:
+        if is_debian_variant():
             subprocess.check_call(['/sbin/sysctl', '-p', '/usr/lib/sysctl.d/50-coredump.conf'])
         else:
             subprocess.check_call(['/sbin/sysctl', '-p', '/etc/sysctl.d/99-scylla-coredump.conf'])
