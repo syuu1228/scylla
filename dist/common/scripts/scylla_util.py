@@ -46,6 +46,14 @@ def is_redhat_variant():
 def is_gentoo_variant():
     return os.path.exists("/etc/gentoo-release")
 
+def is_ec2():
+    try:
+        f = open("/sys/devices/virtual/dmi/id/product_uuid")
+        str = f.read()
+        return True if re.match(r'^EC2.*', str) else False
+    except FileNotFoundError:
+        return False
+
 class aws_instance:
     """Describe several aspects of the current AWS instance"""
     def __disk_name(self, dev):
