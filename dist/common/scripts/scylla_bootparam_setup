@@ -39,30 +39,30 @@ if __name__ == '__main__':
 
     if not args.ami:
         sys.exit(0)
-    if not os.path.exists("/etc/default/grub") and not os.path.exists("/boot/grub/menu.lst"):
-        logging.error("Unsupported bootloader")
+    if not os.path.exists('/etc/default/grub') and not os.path.exists('/boot/grub/menu.lst'):
+        logging.error('Unsupported bootloader')
         sys.exit(1)
 
-    if os.path.exists("/etc/default/grub"):
-        f = open("/etc/default/grub")
+    if os.path.exists('/etc/default/grub'):
+        f = open('/etc/default/grub')
         cur = f.read()
         f.close()
         if len(re.findall(r'^GRUB_CMDLINE_LINUX=.*clocksource', cur, flags=re.MULTILINE)) == 0:
-            new = re.sub(r'^GRUB_CMDLINE_LINUX=(.*)$', 'GRUB_CMDLINE="clocksource=tsc tsc=reliable "', cur, flags=re.MULTILINE)
-            f = open("/etc/default/grub", "w")
+            new = re.sub(r'^GRUB_CMDLINE_LINUX=(.*)$', 'GRUB_CMDLINE='clocksource=tsc tsc=reliable '', cur, flags=re.MULTILINE)
+            f = open('/etc/default/grub', 'w')
             f.write(new)
             f.close()
             if is_debian_variant():
-                subprocess.check_call(["update-grub"])
+                subprocess.check_call(['update-grub'])
             else:
-                subprocess.check_call(["grub2-mkconfig", "-o", "/boot/grub2/grub.cfg"])
+                subprocess.check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 
-    if is_ec2() and os.path.exists("/boot/grub/menu.lst"):
-        f = open("/boot/grub/menu.lst")
+    if is_ec2() and os.path.exists('/boot/grub/menu.lst'):
+        f = open('/boot/grub/menu.lst')
         cur = f.read()
         f.close()
         if len(re.findall(r'^\s*kernel.*clocksource', cur, flags=re.MULTILINE)) == 0:
             new = re.sub(r'(^\s*kernel.*)', r'\1 clocksource=tsc tsc=reliable ', cur, flags=re.MULTILINE)
-            f = open("/boot/grub/menu.lst", "w")
+            f = open('/boot/grub/menu.lst', 'w')
             f.write(new)
             f.close()
