@@ -34,7 +34,7 @@ if __name__ == '__main__':
     if args.developer_mode == 0:
         sys.exit(0)
 
-    f = open("/etc/scylla.d/dev-mode.conf", "w")
-    f.write("DEV_MODE=--developer-mode=1")
+    f = open('/etc/scylla.d/dev-mode.conf', 'w')
+    f.write('DEV_MODE=--developer-mode=1')
     f.close()
 
