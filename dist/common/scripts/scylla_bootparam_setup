@@ -30,7 +30,7 @@ from scylla_util import is_debian_variant
 
 if __name__ == '__main__':
     if os.getuid() > 0:
-        print('Requires root permission.')
+        logging.error('Requires root permission.')
         sys.exit(1)
     parser = argparse.ArgumentParser(description='Optimize boot parameter settings for Scylla.')
     parser.add_argument('--ami', action='store_true', default=False,
