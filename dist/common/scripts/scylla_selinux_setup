@@ -26,7 +26,7 @@ from scylla_util import is_debian_variant, is_gentoo_variant
 
 if __name__ == '__main__':
     if os.getuid() > 0:
-        print('Requires root permission.')
+        logging.error('Requires root permission.')
         sys.exit(1)
 
     if is_debian_variant() or is_gentoo_variant():
