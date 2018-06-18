@@ -21,10 +21,11 @@
 
 import os
 import argparse
+import logging
 
 if __name__ == '__main__':
     if os.getuid() > 0:
-        print('Requires root permission.')
+        logging.error('Requires root permission.')
         sys.exit(1)
     parser = argparse.ArgumentParser(description='Configure cpuset configuration for Scylla.')
     parser.add_argument('--cpuset',
