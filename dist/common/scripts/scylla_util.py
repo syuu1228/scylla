@@ -54,6 +54,14 @@ def is_ec2():
     except FileNotFoundError:
         return False
 
+def is_systemd():
+    try:
+        f = open('/proc/1/comm')
+        str = f.read()
+        return True if re.match(r'^systemd$', str, flags=re.MULTILINE) else False
+    except:
+        return False
+
 class aws_instance:
     """Describe several aspects of the current AWS instance"""
     def __disk_name(self, dev):
