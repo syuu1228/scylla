@@ -1,61 +1,86 @@
-#!/bin/bash -e
+#!/usr/bin/python2
 #
-#  Copyright (C) 2015 ScyllaDB
+# Copyright 2018 ScyllaDB
+#
 
-. /usr/lib/scylla/scylla_lib.sh
+#
+# This file is part of Scylla.
+#
+# Scylla is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Scylla is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
-print_usage() {
-    echo "scylla_ntp_setup --subdomain centos"
-    echo "  --subdomain specify subdomain of pool.ntp.org (ex: centos, fedora or amazon)"
-    exit 1
-}
+import os
+import argparse
+import subprocess
+import logging
 
-while [ $# -gt 0 ]; do
-    case "$1" in
-        "--subdomain")
-            verify_args $@
-            DOMAIN="$2"
-            shift 2
-            ;;
-        *)
-            print_usage
-            ;;
-    esac
-done
+if __name__ == '__main__':
+    if os.getuid() > 0:
+        logging.error('Requires root permission.')
+        sys.exit(1)
 
-if is_debian_variant; then
-    apt-get install -y ntp ntpdate
-    service ntp stop
-    count=$(egrep '^server' /etc/ntp.conf|wc -l)
-    if [ $count -eq 0 ]; then
-        cp /etc/ntp.conf /etc/ntp.conf_orig
-        grep -v "pool" /etc/ntp.conf > /etc/ntp.conf_new
-        cp /etc/ntp.conf_new /etc/ntp.conf
-        rm -rf /etc/ntp.conf_new
-        echo "server ntp.ubuntu.com iburst" >> /etc/ntp.conf
-    fi
-    ntpdate `cat /etc/ntp.conf |egrep "^server"|head -n1|awk '{print $2}'`
-    service ntp start
-elif is_gentoo_variant; then
-    emerge -uq net-misc/ntp
-    pidof ntpd &>/dev/null || ntpdate `cat /etc/ntp.conf |grep "^server"|head -n1|awk '{print $2}'`
-    if is_systemd; then
-        systemctl enable sntpd.service
-        systemctl start sntpd.service
-    else
-        rc-update add ntpd default
-        rc-service ntpd start
-    fi
-else
-    yum install -y ntp ntpdate || true
-    if [ "$DOMAIN" != "" ]; then
-        sed -e "s#\..*\.pool\.ntp\.org#.$DOMAIN.pool.ntp.org#" /etc/ntp.conf > /tmp/ntp.conf
-        mv /tmp/ntp.conf /etc/ntp.conf
-    fi
-    if [ "`systemctl is-active ntpd`" = "active" ]; then
-        systemctl stop ntpd.service
-    fi
-    ntpdate `cat /etc/ntp.conf |grep "^server"|head -n1|awk '{print $2}'`
-    systemctl enable ntpd.service
-    systemctl start ntpd.service
-fi
+    if is_debian_variant():
+        subprocess.check_call(['apt-get', 'install', '-y', 'ntp', 'ntpdate'])
+        subprocess.check_call(['service', 'ntp', 'stop'])
+        f = open('/etc/ntp.conf')
+        conf = f.read()
+        f.close()
+        if not re.match(r'^server ', conf, flags=re.MULTILINE):
+            conf2 = re.findall(r'^(?!pool).*\n', conf, flags=re.MULTILINE)
+            f = open('/etc/ntp.conf', 'w')
+            f.writelines(conf2)
+            f.write('server ntp.ubuntu.com iburst')
+            f.close()
+        subprocess.check_call(['ntpdate', 'ntp.ubuntu.com'])
+        subprocess.check_call(['service', 'ntp', 'start'])
+
+    if is_gentoo_variant():
+        subprocess.check_call(['emerge', '-uq', 'net-misc/ntp'])
+        p = subprocess.Popen(['pidof', 'ntpd'], stdout=subprocess.PIPE)
+        p.wait()
+        if p.returncode != 0:
+            f = open('/etc/ntp.conf')
+            conf = f.read()
+            f.close()
+            match = re.search(r'^server\s+(\S*)(\s+\S+)?', conf, flags=re.MULTILINE)
+            subprocess.check_call(['ntpdate', match.group(1)])
+            if is_systemd():
+                subprocess.check_call(['systemctl', 'enable', 'sntpd.service'])
+                subprocess.check_call(['systemctl', 'start', 'sntpd.service'])
+            else:
+                subprocess.check_call(['rc-update', 'add', 'ntpd', 'default'])
+                subprocess.check_call(['rc-service', 'ntpd', 'start'])
+
+    if is_redhat_variant():
+        parser = argparse.ArgumentParser(description='Optimize NTP client setting for Scylla.')
+        parser.add_argument('--subdomain',
+                            help='specify subdomain of pool.ntp.org (ex: centos, fedora or amazon)')
+        args = parser.parse_args()
+        subprocess.call(['yum', 'install', '-y', 'ntp', 'ntpdate'])
+        f = open('/etc/ntp.conf')
+        conf = f.read()
+        f.close()
+        if args.subdomain:
+            conf2 = re.sub(r'server\s+([0-9]+)\.(\S+)\.pool\.ntp\.org', 'server \\1.{}.pool.ntp.org'.format(args.subdomain), conf, flags=re.MULTILINE)
+            f = open('/etc/ntp.conf', 'w')
+            f.write(conf2)
+            f.close()
+            conf = conf2
+        p = subprocess.Popen(['systemctl', 'is-active', 'ntpd.service'], stdout=subprocess.PIPE)
+        is_active = p.communicate()[0]
+        if re.match(r'^active', str, flags=re.MULTILINE):
+            subprocess.check_call(['systemctl', 'stop', 'ntpd.service'])
+        match = re.search(r'^server\s+(\S*)(\s+\S+)?', conf, flags=re.MULTILINE)
+        subprocess.check_call(['ntpdate', match.group(1)])
+        subprocess.check_call(['systemctl', 'enable', 'ntpd.service'])
+        subprocess.check_call(['systemctl', 'start', 'ntpd.service'])
