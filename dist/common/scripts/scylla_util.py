@@ -38,17 +38,17 @@ def curl(url):
                 raise
 
 def is_debian_variant():
-    return os.path.exists("/etc/debian_version")
+    return os.path.exists('/etc/debian_version')
 
 def is_redhat_variant():
-    return os.path.exists("/etc/redhat-release")
+    return os.path.exists('/etc/redhat-release')
 
 def is_gentoo_variant():
-    return os.path.exists("/etc/gentoo-release")
+    return os.path.exists('/etc/gentoo-release')
 
 def is_ec2():
     try:
-        f = open("/sys/devices/virtual/dmi/id/product_uuid")
+        f = open('/sys/devices/virtual/dmi/id/product_uuid')
         str = f.read()
         return True if re.match(r'^EC2.*', str) else False
     except FileNotFoundError:
