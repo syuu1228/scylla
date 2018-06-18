@@ -20,6 +20,7 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import logging
 import subprocess
 import distro
 import shutil
@@ -27,7 +28,7 @@ from scylla_util import is_redhat_variant
 
 if __name__ == '__main__':
     if os.getuid() > 0:
-        print('Requires root permission.')
+        logging.error('Requires root permission.')
         sys.exit(1)
     if is_redhat_variant():
         subprocess.check_call(["systemctl", "disable", "fstrim.timer"])
