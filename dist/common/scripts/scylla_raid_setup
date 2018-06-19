@@ -22,7 +22,9 @@
 import os
 import argparse
 import logging
-import shutil
+import distro
+import pwd
+import grp
 from scylla_util import *
 
 if __name__ == '__main__':
@@ -43,7 +45,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    root = os.path.dirname(args.root)
+    root = args.root.rstrip('/')
     if args.volume_role == 'all':
         mount_at=root
     elif args.volume_role == 'data':
@@ -65,7 +67,7 @@ if __name__ == '__main__':
         logging.error('{} is already using'.format(args.raiddev))
         sys.exit(1)
 
-    if os.ismount(mount_at):
+    if os.path.ismount(mount_at):
         logging.error('{} is already mounted'.format(mount_at))
         sys.exit(1)
 
@@ -90,8 +92,8 @@ if __name__ == '__main__':
                 discard = f.read().strip()
                 f.close()
                 if discard != '0':
-                    proc = subprocess.Popen('blkdiscard {}'.format(disk))
-                    procs.append(p)
+                    proc = subprocess.Popen(['blkdiscard', disk])
+                    procs.append(proc)
         for proc in procs:
             proc.wait()
         run('udevadm settle')
@@ -109,23 +111,26 @@ if __name__ == '__main__':
     f.write(res)
     f.close()
 
-    os.mkdirs(mount_at)
-    run('mount -t xfs -o noatime {} "{}"'.format(args.raiddev, mount_at))
+    makedirs(mount_at)
+    run('mount -t xfs -o noatime {raid} "{mount_at}"'.format(raid=args.raiddev, mount_at=mount_at))
 
-    os.mkdirs('{}/data'.format(root))
-    os.mkdirs('{}/commitlog'.format(root))
-    os.mkdirs('{}/coredump'.format(root))
-    shutil.chown(root, 'scylla', 'scylla')
-    shutil.chown('{}/data'.format(root), 'scylla', 'scylla')
-    shutil.chown('{}/commitlog'.format(root), 'scylla', 'scylla')
-    shutil.chown('{}/coredump'.format(root), 'scylla', 'scylla')
+    makedirs('{}/data'.format(root))
+    makedirs('{}/commitlog'.format(root))
+    makedirs('{}/coredump'.format(root))
+
+    uid = pwd.getpwnam('scylla').pw_uid
+    gid = grp.getgrnam('scylla').gr_gid
+    os.chown(root, uid, gid)
+    os.chown('{}/data'.format(root), uid, gid)
+    os.chown('{}/commitlog'.format(root), uid, gid)
+    os.chown('{}/coredump'.format(root), uid, gid)
 
     if args.update_fstab:
         res = out('blkid {}'.format(args.raiddev))
         match = re.search(r'^/dev/\S+: (UUID="\S+")', res.strip())
         uuid = match.group(1)
         f = open('/etc/fstab', 'a')
-        f.write('{uuid} {mount_at} xfs noatime 0 0'.format(uuid=uuid, mount_at=mount_at))
+        f.write('{uuid} {mount_at} xfs noatime 0 0\n'.format(uuid=uuid, mount_at=mount_at))
         f.close()
 
     if is_debian_variant():
