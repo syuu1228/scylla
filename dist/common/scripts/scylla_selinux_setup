@@ -20,21 +20,23 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import subprocess
 import logging
-import scylla_util
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
         logging.error('Requires root permission.')
         sys.exit(1)
 
-    if scylla_util.is_debian_variant() or scylla_util.is_gentoo_variant():
+    if is_debian_variant() or is_gentoo_variant():
         logging.error("scylla_selinux_setup only supports Red Hat variants")
         sys.exit(0)
 
-    res = subprocess.check_output(['sestatus'])
+    res = out('sestatus')
     if res.split(None)[2] != 'disabled':
-        subprocess.check_call(['setenforce', '0'])
+        run('setenforce 0')
         cfg = scylla_util.sysconfig_parser('/etc/sysconfig/selinux')
         cfg.set('SELINUX', 'disabled')
+        cfg.commit()
