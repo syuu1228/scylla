@@ -24,14 +24,15 @@ import logging
 import subprocess
 import distro
 import shutil
-from scylla_util import is_redhat_variant
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
         logging.error('Requires root permission.')
         sys.exit(1)
     if is_redhat_variant():
-        subprocess.check_call(["systemctl", "disable", "fstrim.timer"])
+        fstrim = systemd_unit('fstrim.timer')
+        fstrim.disable()
     if distro.id() == 'ubuntu' and os.path.exists('/etc/cron.weekly/fstrim'):
         shutil.move('/etc/cron.weekly/fstrim', '/etc/cron.weekly/fstrim.old')
 
