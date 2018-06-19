@@ -23,7 +23,9 @@ import re
 import os
 import string
 import ConfigParser
+import StringIO
 import subprocess
+import shlex
 
 def curl(url):
     max_retries = 5
@@ -47,11 +49,11 @@ def run_noex(cmd):
     return p.wait()
 
 def out(cmd):
-    return subprocess.check_output(shlex.split(cmd))
+    return subprocess.check_output(shlex.split(cmd)).strip()
 
 def out_noex(cmd):
     p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
-    return p.communicate()[0]
+    return p.communicate()[0].strip()
 
 def is_debian_variant():
     return os.path.exists('/etc/debian_version')
@@ -78,15 +80,31 @@ def is_systemd():
     except:
         return False
 
+def hex2list(hex_str):
+    hex_str2 = hex_str.replace("0x", "").replace(",", "")
+    hex_int = int(hex_str2, 16)
+    bin_str = "{0:b}".format(hex_int)
+    bin_len = len(bin_str)
+    cpu_list = []
+    i = 0
+    while i < bin_len:
+        if 1 << i & hex_int:
+            j = i
+            while j + 1 < bin_len and 1 << j + 1 & hex_int:
+                j += 1
+            if j == i:
+                cpu_list.append(str(i))
+            else:
+                cpu_list.append("{0}-{1}".format(i, j))
+                i = j
+        i += 1
+    return ",".join(cpu_list)
 
 class SystemdException(Exception):
     pass
 
 class systemd_unit:
     def __init__(self, unit):
-        ret = run_noex('systemctl cat {}'.format(unit))
-        if ret != 0:
-            raise SystemdException('Unit {} could not be found.'.format(unit))
         self._unit = unit
 
     def start(self):
@@ -109,41 +127,27 @@ class systemd_unit:
         res = out_noex('systemctl is-active {}'.format(self._unit))
         return True if re.match(r'^active', res, flags=re.MULTILINE) else False
 
-class _fakehead:
-    def __init__(self, fp):
-        self._fp = fp
-        self._head = '[global]\n'
-
-    def readline(self):
-        if self._head:
-            try:
-                return self._head
-            finally:
-                self._head = None
-        else:
-            return self._fp.readline()
-
 class sysconfig_parser:
     def __load(self):
-        if not os.path.exists(self._filename):
-            open(self._filename, 'a').close()
-        f = open(self._filename)
+        f = StringIO.StringIO('[global]\n{}'.format(self._data))
         self._cfg = ConfigParser.ConfigParser()
         self._cfg.optionxform = str
-        self._cfg.readfp(_fakehead(f))
-        f.close()
+        self._cfg.readfp(f)
 
     def __escape(self, val):
         return re.sub(r'"', r'\"', val)
 
     def __add(self, key, val):
-        f = open(self._filename, 'a')
-        f.write('{}="{}"\n'.format(key, self.__escape(val)))
-        f.close()
+        self._data += '{}="{}"\n'.format(key, self.__escape(val))
         self.__load()
 
     def __init__(self, filename):
         self._filename = filename
+        if not os.path.exists(filename):
+            open(filename, 'a').close()
+        f = open(filename)
+        self._data = f.read()
+        f.close()
         self.__load()
 
     def get(self, key):
@@ -152,14 +156,13 @@ class sysconfig_parser:
     def set(self, key, val):
         if not self._cfg.has_option('global', key):
             return self.__add(key, val)
-        f = open(self._filename)
-        cur = f.read()
-        f.close()
-        new = re.sub('^{}=\S+$'.format(key), '{}="{}"'.format(key, self.__escape(val)), cur, flags=re.MULTILINE)
-        f = open(self._filename, 'w')
-        f.write(new)
-        f.close()
+        self._data = re.sub('^{}=[^\n]*$'.format(key), '{}="{}"'.format(key, self.__escape(val)), self._data, flags=re.MULTILINE)
         self.__load()
+
+    def commit(self):
+        f = open(self._filename, 'w')
+        f.write(self._data)
+        f.close()
 
 class aws_instance:
     """Describe several aspects of the current AWS instance"""
