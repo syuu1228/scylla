@@ -20,14 +20,23 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import argparse
 import subprocess
 import logging
+import re
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
         logging.error('Requires root permission.')
         sys.exit(1)
+
+    parser = argparse.ArgumentParser(description='Optimize NTP client setting for Scylla.')
+    if is_redhat_variant():
+        parser.add_argument('--subdomain',
+                            help='specify subdomain of pool.ntp.org (ex: centos, fedora or amazon)')
+    args = parser.parse_args()
 
     if is_debian_variant():
         subprocess.check_call(['apt-get', 'install', '-y', 'ntp', 'ntpdate'])
@@ -62,10 +71,6 @@ if __name__ == '__main__':
                 subprocess.check_call(['rc-service', 'ntpd', 'start'])
 
     if is_redhat_variant():
-        parser = argparse.ArgumentParser(description='Optimize NTP client setting for Scylla.')
-        parser.add_argument('--subdomain',
-                            help='specify subdomain of pool.ntp.org (ex: centos, fedora or amazon)')
-        args = parser.parse_args()
         subprocess.call(['yum', 'install', '-y', 'ntp', 'ntpdate'])
         f = open('/etc/ntp.conf')
         conf = f.read()
@@ -76,11 +81,10 @@ if __name__ == '__main__':
             f.write(conf2)
             f.close()
             conf = conf2
-        p = subprocess.Popen(['systemctl', 'is-active', 'ntpd.service'], stdout=subprocess.PIPE)
-        is_active = p.communicate()[0]
-        if re.match(r'^active', is_active, flags=re.MULTILINE):
-            subprocess.check_call(['systemctl', 'stop', 'ntpd.service'])
+        ntpd = systemd_unit('ntpd.service')
+        if ntpd.is_active():
+            ntpd.stop()
         match = re.search(r'^server\s+(\S*)(\s+\S+)?', conf, flags=re.MULTILINE)
         subprocess.check_call(['ntpdate', match.group(1)])
-        subprocess.check_call(['systemctl', 'enable', 'ntpd.service'])
-        subprocess.check_call(['systemctl', 'start', 'ntpd.service'])
+        ntpd.enable()
+        ntpd.start()
