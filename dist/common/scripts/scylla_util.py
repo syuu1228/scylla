@@ -22,6 +22,7 @@ import time
 import re
 import os
 import string
+import ConfigParser
 
 def curl(url):
     max_retries = 5
@@ -61,6 +62,56 @@ def is_systemd():
         return True if re.match(r'^systemd$', str, flags=re.MULTILINE) else False
     except:
         return False
+
+class _fakehead:
+    def __init__(self, fp):
+        self._fp = fp
+        self._head = '[global]\n'
+
+    def readline(self):
+        if self._head:
+            try:
+                return self._head
+            finally:
+                self._head = None
+        else:
+            return self._fp.readline()
+
+class sysconfig_parser:
+    def __load(self):
+        f = open(self._filename)
+        self._cfg = ConfigParser.ConfigParser()
+        self._cfg.optionxform = str
+        self._cfg.readfp(_fakehead(f))
+        f.close()
+
+    def __escape(self, val):
+        return re.sub(r'"', r'\"', val)
+
+    def __add(self, key, val):
+        f = open(self._filename, 'a')
+        f.write('{}="{}"\n'.format(key, self.__escape(val)))
+        f.close()
+        self.__load()
+
+    def __init__(self, filename):
+        self._filename = filename
+        self.__load()
+
+    def get(self, key):
+        return self._cfg.get('global', key)
+
+    def set(self, key, val):
+        if not self._cfg.has_option('global', key):
+            return self.__add(key, val)
+        f = open(self._filename)
+        cur = f.read()
+        f.close()
+        new = re.sub('^{}=\S+$'.format(key), '{}="{}"'.format(key, self.__escape(val)), cur, flags=re.MULTILINE)
+        f = open(self._filename, 'w')
+        f.write(new)
+        f.close()
+        self.__load()
 
 class aws_instance:
     """Describe several aspects of the current AWS instance"""
