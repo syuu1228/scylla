@@ -40,9 +40,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     cfg = sysconfig_parser('/etc/scylla.d/cpuset.conf')
-    cfg.set('CPUSET', '{}{}'.format( \
-            '--cpuset {} '.format(args.cpuset) if args.cpuset else '', \
-            '--smp {} '.format(args.smp) if args.smp else '' \
+    cfg.set('CPUSET', '{cpuset}{smp}'.format( \
+            cpuset='--cpuset {} '.format(args.cpuset) if args.cpuset else '', \
+            smp='--smp {} '.format(args.smp) if args.smp else '' \
             ))
     cfg.commit()
 
