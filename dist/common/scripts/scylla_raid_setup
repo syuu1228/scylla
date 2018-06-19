@@ -77,7 +77,7 @@ if __name__ == '__main__':
     logging.info('Creating RAID0 for scylla using {} disk(s): {}'.format(len(disks), args.disks))
     if distro.id() == 'ubuntu' and distro.version() == '14.04':
         run('udevadm settle')
-        run('mdadm --create --verbose --force --run {} --level=0 -c1024 --raid-devices={} {}'.format(args.raiddev, len(disks), args.disks.replace(',', ' ')))
+        run('mdadm --create --verbose --force --run {raid} --level=0 -c1024 --raid-devices={nr_disk} {disks}'.format(raid=args.raiddev, nr_disk=len(disks), disks=args.disks.replace(',', ' ')))
         run('udevadm settle')
         run('mkfs.xfs {} -f'.format(args.raiddev))
     else:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         for proc in procs:
             proc.wait()
         run('udevadm settle')
-        run('mdadm --create --verbose --force --run {} --level=0 -c1024 --raid-devices={} {}'.format(args.raiddev, len(disks), args.disks.replace(',', ' ')))
+        run('mdadm --create --verbose --force --run {raid} --level=0 -c1024 --raid-devices={nr_disk} {disks}'.format(raid=args.raiddev, nr_disk=len(disks), disks=args.disks.replace(',', ' ')))
         run('udevadm settle')
         run('mkfs.xfs {} -f -K'.format(args.raiddev))
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         match = re.search(r'^/dev/\S+: (UUID="\S+")', res.strip())
         uuid = match.group(1)
         f = open('/etc/fstab', 'a')
-        f.write('{} {} xfs noatime 0 0'.format(uuid, mount_at))
+        f.write('{uuid} {mount_at} xfs noatime 0 0'.format(uuid=uuid, mount_at=mount_at))
         f.close()
 
     if is_debian_variant():
