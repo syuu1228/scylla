@@ -23,6 +23,7 @@ import re
 import os
 import string
 import ConfigParser
+import subprocess
 
 def curl(url):
     max_retries = 5
@@ -37,6 +38,20 @@ def curl(url):
             retries += 1
             if (retries >= max_retries):
                 raise
+
+def run(cmd):
+    return subprocess.check_call(shlex.split(cmd))
+
+def run_noex(cmd):
+    p = subprocess.Popen(shlex.split(cmd))
+    return p.wait()
+
+def out(cmd):
+    return subprocess.check_output(shlex.split(cmd))
+
+def out_noex(cmd):
+    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+    return p.communicate()[0]
 
 def is_debian_variant():
     return os.path.exists('/etc/debian_version')
@@ -63,6 +78,37 @@ def is_systemd():
     except:
         return False
 
+
+class SystemdException(Exception):
+    pass
+
+class systemd_unit:
+    def __init__(self, unit):
+        ret = run_noex('systemctl cat {}'.format(unit))
+        if ret != 0:
+            raise SystemdException('Unit {} could not be found.'.format(unit))
+        self._unit = unit
+
+    def start(self):
+        return run('systemctl start {}'.format(self._unit))
+
+    def stop(self):
+        return run('systemctl stop {}'.format(self._unit))
+        return subprocess.check_call(['systemctl', 'stop', self._unit])
+
+    def restart(self):
+        return run('systemctl restart {}'.format(self._unit))
+
+    def enable(self):
+        return run('systemctl enable {}'.format(self._unit))
+
+    def disable(self):
+        return run('systemctl disable {}'.format(self._unit))
+
+    def is_active(self):
+        res = out_noex('systemctl is-active {}'.format(self._unit))
+        return True if re.match(r'^active', res, flags=re.MULTILINE) else False
+
 class _fakehead:
     def __init__(self, fp):
         self._fp = fp
@@ -79,6 +125,8 @@ class _fakehead:
 
 class sysconfig_parser:
     def __load(self):
+        if not os.path.exists(self._filename):
+            open(self._filename, 'a').close()
         f = open(self._filename)
         self._cfg = ConfigParser.ConfigParser()
         self._cfg.optionxform = str
