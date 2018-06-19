@@ -56,12 +56,9 @@ if __name__ == '__main__':
             subprocess.check_call(['rc-service', 'cpupower', 'start'])
     if is_redhat_variant():
         subprocess.call(['yum', 'install', '-y', 'cpupowerutils'])
-        f = open('/etc/sysconfig/cpupower')
-        f.write('''
-CPUPOWER_START_OPTS="frequency-set -g performance"
-CPUPOWER_STOP_OPTS="frequency-set -g ondemand"
-        '''.strip())
-        f.close()
+        cfg = scylla_util.sysconfig_parser('/etc/sysconfig/cpupower')
+        cfg.set('CPUPOWER_START_OPTS', 'frequency-set -g performance')
+        cfg.set('CPUPOWER_STOP_OPTS', 'frequency-set -g ondemand')
         p = subprocess.Popen(['systemctl', 'is-active', 'cpupower.service'], stdout=subprocess.PIPE)
         is_active = p.communicate()[0]
         if re.match(r'^active', str, flags=re.MULTILINE):
