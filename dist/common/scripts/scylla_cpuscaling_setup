@@ -20,8 +20,10 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import logging
-from scylla_util import is_debian_variant, is_gentoo_variant, is_redhat_variant, is_systemd
+import shlex
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
@@ -31,16 +33,18 @@ if __name__ == '__main__':
         logging.error('This computer doesn\'t supported CPU scaling configuration.')
         sys.exit(0)
     if is_debian_variant():
-        subprocess.check_call(['apt-get', 'install', '-y', 'cpufrequtils'])
-        subprocess.check_call(['service', 'cpufrequtils', 'stop'])
-        f = open('/etc/default/cpufrequtils', 'w')
-        f.write('GOVERNOR='performance'\n')
-        f.close()
+        run('apt-get install -y cpufrequtils')
+        cfg = sysconfig_parser('/etc/default/cpufrequtils')
+        cfg.set('GOVERNOR', 'performance')
+        cfg.commit()
         if is_systemd():
-            subprocess.check_call(['systemctl', 'enable', 'cpufrequtils.service'])
-        subprocess.check_call(['service', 'cpufrequtils', 'start'])
+            cpufreq = systemd_unit('cpufrequtils.service')
+            cpufreq.enable()
+            cpufreq.restart()
+        else:
+            run('service cpufrequtils restart')
     if is_gentoo_variant():
-        subprocess.check_call(['emerge', '-uq', 'sys-power/cpupower'])
+        run('emerge -uq sys-power/cpupower')
         f = open('/etc/conf.d/cpupower')
         cur = f.read()
         f.close()
@@ -49,19 +53,18 @@ if __name__ == '__main__':
         f.write(new)
         f.close()
         if is_systemd():
-            subprocess.check_call(['systemctl', 'enable', 'cpupower-frequency-set.service'])
-            subprocess.check_call(['systemctl', 'start', 'cpupower-frequency-set.service'])
+            cpufreq = systemd_unit('cpupower-frequency-set.service')
+            cpufreq.enable()
+            cpufreq.restart()
         else:
-            subprocess.check_call(['rc-update', 'add', 'cpupower', 'default'])
-            subprocess.check_call(['rc-service', 'cpupower', 'start'])
+            run('rc-update add cpupower default')
+            run('rc-service cpupower start')
     if is_redhat_variant():
-        subprocess.call(['yum', 'install', '-y', 'cpupowerutils'])
+        run('yum install -y cpupowerutils')
         cfg = scylla_util.sysconfig_parser('/etc/sysconfig/cpupower')
         cfg.set('CPUPOWER_START_OPTS', 'frequency-set -g performance')
         cfg.set('CPUPOWER_STOP_OPTS', 'frequency-set -g ondemand')
-        p = subprocess.Popen(['systemctl', 'is-active', 'cpupower.service'], stdout=subprocess.PIPE)
-        is_active = p.communicate()[0]
-        if re.match(r'^active', str, flags=re.MULTILINE):
-            subprocess.check_call(['systemctl', 'stop', 'cpupower.service'])
-        subprocess.check_call(['systemctl', 'enable', 'cpupower.service'])
-        subprocess.check_call(['systemctl', 'start', 'cpupower.service'])
+        cfg.commit()
+        cpupwr = systemd_unit('cpupower.service')
+        cpupwr.enable()
+        cpupwr.restart()
