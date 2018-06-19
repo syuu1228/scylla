@@ -66,7 +66,7 @@ ExternalSizeMax=1024G
         conf.close
         if args.dump_to_raiddir:
             shutil.rmtree('/var/lib/systemd/coredump')
-            os.mkdir('/var/lib/scylla/coredump')
+            makedirs('/var/lib/scylla/coredump')
             os.symlink('/var/lib/scylla/coredump', '/var/lib/systemd/coredump')
         run('systemctl daemon-reload')
         if is_debian_variant():
