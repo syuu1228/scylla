@@ -20,8 +20,10 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import argparse
 import logging
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
@@ -33,15 +35,16 @@ if __name__ == '__main__':
     parser.add_argument('--smp',
                         help='number of threads (default: one per CPU)')
     args = parser.parse_args()
+    if not args.cpuset and not args.smp:
+        parser.print_help()
+        sys.exit(1)
 
-    out='CPUSET="{}{}"'.format( \
+    cfg = sysconfig_parser('/etc/scylla.d/cpuset.conf')
+    cfg.set('CPUSET', '{}{}'.format( \
             '--cpuset {} '.format(args.cpuset) if args.cpuset else '', \
             '--smp {} '.format(args.smp) if args.smp else '' \
-            )
+            ))
+    cfg.commit()
 
     if os.path.exists('/etc/scylla.d/perftune.yaml'):
         os.remove('/etc/scylla.d/perftune.yaml')
-
-    f = open('/etc/scylla.d/cpuset.conf', 'w')
-    f.write(out)
-    f.close()
