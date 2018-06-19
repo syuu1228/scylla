@@ -78,7 +78,7 @@ if __name__ == '__main__':
             conf = conf2
         p = subprocess.Popen(['systemctl', 'is-active', 'ntpd.service'], stdout=subprocess.PIPE)
         is_active = p.communicate()[0]
-        if re.match(r'^active', str, flags=re.MULTILINE):
+        if re.match(r'^active', is_active, flags=re.MULTILINE):
             subprocess.check_call(['systemctl', 'stop', 'ntpd.service'])
         match = re.search(r'^server\s+(\S*)(\s+\S+)?', conf, flags=re.MULTILINE)
         subprocess.check_call(['ntpdate', match.group(1)])
