@@ -100,6 +100,10 @@ def hex2list(hex_str):
         i += 1
     return ",".join(cpu_list)
 
+def makedirs(name):
+    if not os.path.isdir(name):
+        os.makedirs(name)
+
 class SystemdException(Exception):
     pass
 
