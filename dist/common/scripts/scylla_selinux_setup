@@ -37,6 +37,6 @@ if __name__ == '__main__':
     res = out('sestatus')
     if res.split(None)[2] != 'disabled':
         run('setenforce 0')
-        cfg = scylla_util.sysconfig_parser('/etc/sysconfig/selinux')
+        cfg = sysconfig_parser('/etc/sysconfig/selinux')
         cfg.set('SELINUX', 'disabled')
         cfg.commit()
