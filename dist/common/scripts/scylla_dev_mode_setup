@@ -20,22 +20,25 @@
 # along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import argparse
 import logging
+from scylla_util import *
 
 if __name__ == '__main__':
     if os.getuid() > 0:
         logging.error('Requires root permission.')
         sys.exit(1)
     parser = argparse.ArgumentParser(description='Modify Scylla running mode.')
-    parser.add_argument('--developer-mode', default=0,
+    parser.add_argument('--developer-mode', type=int, required=True,
                         help='enable/disable developer mode')
     args = parser.parse_args()
 
     if args.developer_mode == 0:
+        if os.path.exists('/etc/scylla.d/dev-mode.conf'):
+            os.remove('/etc/scylla.d/dev-mode.conf')
         sys.exit(0)
 
-    f = open('/etc/scylla.d/dev-mode.conf', 'w')
-    f.write('DEV_MODE=--developer-mode=1')
-    f.close()
-
+    cfg = sysconfig_parser('/etc/scylla.d/dev-mode.conf')
+    cfg.set('DEV_MODE', '--developer-mode=1')
+    cfg.commit()
