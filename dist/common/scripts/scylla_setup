@@ -72,6 +72,9 @@ def list_block_devices():
 def get_unused_disks():
     unused = []
     for dev in list_block_devices():
+        # dev contains partitions
+        if len(glob.glob('/sys/class/block/sda/sda*')) > 0:
+            continue
         # dev is mounted
         with open('/proc/mounts') as f:
             s = f.read().strip()
