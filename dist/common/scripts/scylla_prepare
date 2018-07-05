@@ -1,33 +1,61 @@
-#!/bin/bash -e
+#!/usr/bin/python3
+#
+# Copyright 2018 ScyllaDB
+#
 
-. /usr/lib/scylla/scylla_lib.sh
+#
+# This file is part of Scylla.
+#
+# Scylla is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Scylla is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
 
-if [ "$AMI" = "yes" ] && [ -f /etc/scylla/ami_disabled ]; then
-    rm /etc/scylla/ami_disabled
-    exit 1
-fi
+import os
+import sys
+import glob
+from scylla_util import *
 
-if [ "$NETWORK_MODE" = "virtio" ]; then
-    ip tuntap del mode tap dev $TAP
-    ip tuntap add mode tap dev $TAP user $USER one_queue vnet_hdr
-    ip link set dev $TAP up
-    ip link set dev $TAP master $BRIDGE
-    chown $USER.$GROUP /dev/vhost-net
-elif [ "$NETWORK_MODE" = "dpdk" ]; then
-    modprobe uio
-    modprobe uio_pci_generic
-    /usr/lib/scylla/dpdk-devbind.py --force --bind=uio_pci_generic $ETHPCIID
-    for n in /sys/devices/system/node/node?; do
-        echo $NR_HUGEPAGES > $n/hugepages/hugepages-2048kB/nr_hugepages
-    done
-    if [ "$ID" = "ubuntu" ]; then
-        hugeadm --create-mounts
-    fi
-else # NETWORK_MODE = posix
-    if [ "$SET_NIC" = "yes" ]; then
-        create_perftune_conf "$IFNAME"
-        /usr/lib/scylla/posix_net_conf.sh $IFNAME --options-file /etc/scylla.d/perftune.yaml
-    fi
-fi
+if __name__ == '__main__':
+    if os.getuid() > 0:
+        print('Requires root permission.')
+        sys.exit(1)
+    if is_redhat_variant():
+        cfg = sysconfig_parser('/etc/sysconfig/scylla-server')
+    else:
+        cfg = sysconfig_parser('/etc/default/scylla-server')
 
-/usr/lib/scylla/scylla-blocktune
+    if cfg.get('AMI') == 'yes' and os.path.exists('/etc/scylla/ami_disabled'):
+        rm /etc/scylla/ami_disabled
+        sys.exit(1)
+
+    if cfg.get('NETWORK_MODE') == 'virtio':
+        run('ip tuntap del mode tap dev {TAP}'.format(TAP=cfg.get('TAP')))
+        run('ip tuntap add mode tap dev {TAP} user {USER} one_queue vnet_hdr'.format(TAP=cfg.get('TAP'), USER=cfg.get('USER')))
+        run('ip link set dev {TAP} up'.format(TAP=cfg.get('TAP')))
+        run('ip link set dev {TAP} master {BRIDGE}'.format(TAP=cfg.get('TAP'), BRIDGE=cfg.get('BRIDGE')))
+        run('chown {USER}.{GROUP} /dev/vhost-net'.format(USER=cfg.get('USER'), GROUP=cfg.get('GROUP')))
+    elif cfg.get('NETWORK_MODE') == 'dpdk':
+        run('modprobe uio')
+        run('modprobe uio_pci_generic')
+        run('/usr/lib/scylla/dpdk-devbind.py --force --bind=uio_pci_generic {ETHPCIID}'.format(ETHPCIID=cfg.get('ETHPCIID')))
+        for n in glob.glob('/sys/devices/system/node/node?'):
+            with open('{n}/hugepages/hugepages-2048kB/nr_hugepages'.format(n=n), 'w') as f:
+                f.write(cfg.get('NR_HUGEPAGES'))
+        if dist_name() == 'Ubuntu': 
+            run('hugeadm --create-mounts')
+        fi
+    else:
+        if cfg.get('SET_NIC') == 'yes':
+            run('create_perftune_conf {IFNAME}'.format(IFNAME=cfg.get('IFNAME')))
+            run('/usr/lib/scylla/posix_net_conf.sh {IFNAME} --options-file /etc/scylla.d/perftune.yaml'.format(IFNAME=cfg.get('IFNAME')))
+
+run('/usr/lib/scylla/scylla-blocktune')
