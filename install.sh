@@ -30,14 +30,16 @@ Options:
   --root /path/to/root     alternative install root (default /)
   --prefix /prefix         directory prefix (default /usr)
   --housekeeping           enable housekeeping service
+  --target centos          specify target distribution
   --help                   this helpful message
 EOF
     exit 1
 }
 
 root=/
-prefix=/usr
+prefix=/opt/scylladb
 housekeeping=false
+target=centos
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -53,6 +55,10 @@ while [ $# -gt 0 ]; do
             housekeeping=true
             shift 1
             ;;
+        "--target")
+            target="$2"
+            shift 2
+            ;;
         "--help")
             shift 1
 	    print_usage
@@ -64,41 +70,39 @@ while [ $# -gt 0 ]; do
 done
 
 rprefix="$root/$prefix"
+rusr="$root/usr"
 retc="$root/etc"
 rdoc="$rprefix/share/doc"
 
-. /etc/os-release
-
-MUSTACHE_DIST="\"redhat\": true"
-pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-server.service
-pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-daily.service
-pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-restart.service
-
-
-install -m755 -d "$retc/sysconfig" "$retc/security/limits.d"
-install -m755 -d "$retc/scylla.d" "$rprefix/lib/sysctl.d"
+install -m755 -d "$retc"/sysconfig "$retc"/security/limits.d
+install -m755 -d "$retc"/scylla.d "$rusr"/lib/sysctl.d
+install -m755 -d "$retc"/profile.d
 install -m644 dist/common/sysconfig/scylla-server -Dt "$retc"/sysconfig
 install -m644 dist/common/limits.d/scylla.conf -Dt "$retc"/security/limits.d
 install -m644 dist/common/scylla.d/*.conf -Dt "$retc"/scylla.d
-install -m644 dist/common/sysctl.d/*.conf -Dt "$rprefix"/lib/sysctl.d
+install -m644 dist/common/sysctl.d/*.conf -Dt "$rusr"/lib/sysctl.d
+install -m644 dist/common/profile.d/* -Dt "$retc"/profile.d
 
 SYSCONFDIR="/etc/sysconfig"
 REPOFILES="'/etc/yum.repos.d/scylla*.repo'"
+MUSTACHE_DIST="\"$target\": true, \"target\": \"$target\""
 
-
-install -d -m755 "$retc"/scylla "$rprefix/lib/systemd/system" "$rprefix/lib/scylla" "$rprefix/bin"
+install -d -m755 "$retc"/scylla "$rusr"/lib/systemd/system "$rprefix"/lib/scylla "$rprefix"/bin
 install -m644 conf/scylla.yaml -Dt "$retc"/scylla
 install -m644 conf/cassandra-rackdc.properties -Dt "$retc"/scylla
-install -m644 build/*.service -Dt "$rprefix"/lib/systemd/system
-install -m644 dist/common/systemd/*.service -Dt "$rprefix"/lib/systemd/system
-install -m644 dist/common/systemd/*.timer -Dt "$rprefix"/lib/systemd/system
+pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > "$rusr"/lib/systemd/system/scylla-server.service
+pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > "$rusr"/lib/systemd/system/scylla-housekeeping-daily.service
+pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > "$rusr"/lib/systemd/system/scylla-housekeeping-restart.service
+install -m644 dist/common/systemd/*.service -Dt "$rusr"/lib/systemd/system
+install -m644 dist/common/systemd/*.timer -Dt "$rusr"/lib/systemd/system
 install -m755 dist/common/scripts/* -Dt "$rprefix"/lib/scylla/
 install -m755 seastar/scripts/posix_net_conf.sh "$rprefix"/lib/scylla/
 install -m755 seastar/scripts/perftune.py -Dt "$rprefix"/lib/scylla/
 install -m755 seastar/dpdk/usertools/dpdk-devbind.py -Dt "$rprefix"/lib/scylla/
-install -m755 build/release/scylla -Dt "$rprefix/bin"
-install -m755 build/release/iotune -Dt "$rprefix/bin"
-install -m755 dist/common/bin/scyllatop -Dt "$rprefix/bin"
+install -m755 bin/* -Dt "$rprefix"/bin
+install -m755 lib/* -Dt "$rprefix"/lib
+install -m755 libexec/* -Dt "$rprefix"/libexec
+install -m755 dist/common/bin/scyllatop -Dt "$rprefix"/bin
 install -m644 dist/common/scripts/scylla_blocktune.py -Dt "$rprefix"/lib/scylla/
 install -m755 dist/common/scripts/scylla-blocktune -Dt "$rprefix"/lib/scylla/
 install -m755 scylla-housekeeping -Dt "$rprefix"/lib/scylla/
@@ -126,9 +130,4 @@ cp -r tools/scyllatop "$rprefix"/lib/scylla/scyllatop
 cp -r scylla-housekeeping "$rprefix"/lib/scylla/scylla-housekeeping
 install -d "$rprefix"/sbin
 cp -P dist/common/sbin/* "$rprefix"/sbin
-
-if [[ "$ID" = fedora && "$VERSION_ID" -ge 27 ]]; then
-    install -m755 scylla-gdb.py -Dt "$rprefix"/lib/scylla/
-fi
-
-
+install -m755 scylla-gdb.py -Dt "$rprefix"/lib/scylla/

@@ -26,7 +26,7 @@ import tarfile
 from scylla_util import *
 
 VERSION='0.14.0'
-INSTALL_DIR='/usr/lib/scylla/Prometheus/node_exporter'
+INSTALL_DIR='/opt/scylladb/lib/scylla/Prometheus/node_exporter'
 
 if __name__ == '__main__':
     if os.getuid() > 0:

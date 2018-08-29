@@ -1,1 +1,1 @@
-/usr/lib/scylla/node_health_check
+/opt/scylladb/lib/scylla/node_health_check

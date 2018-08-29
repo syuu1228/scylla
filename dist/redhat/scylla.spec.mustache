@@ -6,13 +6,12 @@ Group:          Applications/Databases
 
 License:        AGPLv3
 URL:            http://www.scylladb.com/
-Source0:        %{name}-{{version}}-{{release}}.tar
-Requires:       {{product}}-server = {{version}} {{product}}-jmx = {{version}} {{product}}-tools = {{version}} {{product}}-tools-core = {{version}} {{product}}-kernel-conf = {{version}} scylla-libgcc73 scylla-libstdc++73
+Source0:        {{reloc_pkg}}
+Requires:       {{product}}-server = {{version}} {{product}}-jmx = {{version}} {{product}}-tools = {{version}} {{product}}-tools-core = {{version}} {{product}}-kernel-conf = {{version}}
 Obsoletes:	scylla-server < 1.1
-Obsoletes:      scylla-libgcc72
-Obsoletes:      scylla-libstdc++72
-Provides:       scylla-libgcc72
-Provides:      scylla-libstdc++72
+
+%define _prefix /opt/scylladb
+%global debug_package %{nil}
 
 %description
 Scylla is a highly scalable, eventually consistent, distributed,
@@ -47,66 +46,37 @@ This package installs all required packages for ScyllaDB,  including
 %defattr(-,root,root)
 
 %prep
-%setup -q
+%setup -c
 
 %package        server
 Group:          Applications/Databases
 Summary:        The Scylla database server
 License:        AGPLv3
 URL:            http://www.scylladb.com/
-BuildRequires:  libaio-devel libstdc++-devel cryptopp-devel hwloc-devel numactl-devel libpciaccess-devel libxml2-devel zlib-devel thrift-devel yaml-cpp-devel lz4-devel snappy-devel jsoncpp-devel systemd-devel xz-devel pcre-devel elfutils-libelf-devel bzip2-devel keyutils-libs-devel xfsprogs-devel make gnutls-devel systemd-devel lksctp-tools-devel protobuf-devel protobuf-compiler systemtap-sdt-devel ninja-build cmake python ragel grep kernel-headers
-%{?fedora:BuildRequires: boost-devel antlr3-tool antlr3-C++-devel python3 gcc-c++ libasan libubsan python3-pyparsing dnf-yum python2-pystache}
-%{?rhel:BuildRequires: scylla-libstdc++73-static scylla-boost163-devel scylla-boost163-static scylla-antlr35-tool scylla-antlr35-C++-devel python34 scylla-gcc73-c++, scylla-python34-pyparsing20 yaml-cpp-static pystache python-setuptools}
+BuildRequires: python2-pystache
+{{#fedora}}
+Requires: python3 python3-PyYAML
+{{/fedora}}
+{{#centos}}
+Requires: python34 python34-PyYAML kernel >= 3.10.0-514
+{{/centos}}
 Requires:       {{product}}-conf systemd-libs hwloc PyYAML python-urwid pciutils pyparsing python-requests curl util-linux python-setuptools pciutils python3-pyudev mdadm xfsprogs
-%{?rhel:Requires: python34 python34-PyYAML kernel >= 3.10.0-514}
-%{?fedora:Requires: python3 python3-PyYAML}
 Conflicts:      abrt
-%ifarch x86_64
-%define configure_opt --enable-dpdk
-%endif
+AutoReqProv:    no
 
 %description server
 This package contains ScyllaDB server.
-
-%if 0%{?fedora} >= 27
-# Does not able to build with redifning __debug_install_post, disable it
-%else
-%define __debug_install_post   \
-    %{_rpmconfigdir}/find-debuginfo.sh %{?_missing_build_ids_terminate_build:--strict-build-id} %{?_find_debuginfo_opts} "%{_builddir}/%{?buildsubdir}";\
-    cp scylla-gdb.py ${RPM_BUILD_ROOT}/usr/src/debug/%{name}-%{version}/;\
-    %{nil}
-%endif
 
 %build
 
 defines=()
 
-# We want a package compiled with old kernel headers to
-# support nowait aio if the user upgrades their kernel
-if ! grep -qwr RWF_NOWAIT /usr/include/linux; then
-    defines+=("-DRWF_NOWAIT=8")
-fi
-if ! grep -qwr aio_rw_flags /usr/include/linux; then
-    defines+=("-Daio_rw_flags=aio_reserved1")
-fi
-
-cflags="--cflags=${defines[*]}"
-
-%if 0%{?fedora}
-./configure.py %{?configure_opt} --with=scylla --with=iotune --mode=release "$cflags"
-%endif
-%if 0%{?rhel}
-. /etc/profile.d/scylla.sh
-python3.4 ./configure.py %{?configure_opt} --with=scylla --with=iotune --mode=release "$cflags" --static-boost --static-yaml-cpp --compiler=/opt/scylladb/bin/g++-7.3 --python python3.4 --ldflag=-Wl,-rpath=/opt/scylladb/lib64
-%endif
-ninja-build %{?_smp_mflags} build/release/scylla build/release/iotune
-
 %install
 {{#housekeeping}}
-./install.sh --root "$RPM_BUILD_ROOT" --housekeeping
+./install.sh --root "$RPM_BUILD_ROOT" --housekeeping --target {{target}}
 {{/housekeeping}}
 {{^housekeeping}}
-./install.sh --root "$RPM_BUILD_ROOT"
+./install.sh --root "$RPM_BUILD_ROOT" --target {{target}}
 {{/housekeeping}}
 
 %pre server
@@ -116,7 +86,7 @@ getent passwd scylla || /usr/sbin/useradd -g scylla -s /sbin/nologin -r -d %{_sh
 %post server
 # Upgrade coredump settings
 if [ -f /etc/systemd/coredump.conf ];then
-    /usr/lib/scylla/scylla_coredump_setup
+    /opt/scylladb/lib/scylla/scylla_coredump_setup
 fi
 
 # Install capabilities.conf when AmbientCapabilities supported
@@ -169,6 +139,12 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/iotune
 %{_bindir}/scyllatop
 %{_sbindir}/scylla*
+%{_libexecdir}/iotune
+%{_libexecdir}/iotune.bin
+%{_libexecdir}/scylla
+%{_libexecdir}/scylla.bin
+%{_prefix}/lib/*.so.*
+%{_prefix}/lib/*.so
 %{_prefix}/lib/scylla/scylla-blocktune
 %{_prefix}/lib/scylla/scylla_blocktune.py
 %{_prefix}/lib/scylla/scylla-housekeeping
@@ -202,9 +178,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_prefix}/lib/scylla/scyllatop/*
 %{_prefix}/lib/scylla/scylla_config_get.py
 %{_prefix}/lib/scylla/scylla_util.py
-%if 0%{?fedora} >= 27
 %{_prefix}/lib/scylla/scylla-gdb.py
-%endif
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/data
 %attr(0755,scylla,scylla) %dir %{_sharedstatedir}/scylla/commitlog
@@ -227,8 +201,8 @@ This package contains the main scylla configuration file.
 
 %post conf
 grep -v api_ui_dir /etc/scylla/scylla.yaml | grep -v api_doc_dir > /tmp/scylla.yaml
-echo "api_ui_dir: /usr/lib/scylla/swagger-ui/dist/" >> /tmp/scylla.yaml
-echo "api_doc_dir: /usr/lib/scylla/api/api-doc/" >> /tmp/scylla.yaml
+echo "api_ui_dir: /opt/scylladb/lib/scylla/swagger-ui/dist/" >> /tmp/scylla.yaml
+echo "api_doc_dir: /opt/scylladb/lib/scylla/api/api-doc/" >> /tmp/scylla.yaml
 mv /tmp/scylla.yaml /etc/scylla/scylla.yaml
 
 # we need to refuse upgrade if current scylla < 1.7.3 && commitlog remains
@@ -238,14 +212,14 @@ if [ -n "$ver" ]; then
     ver_fmt=$(echo $ver | awk -F. '{printf "%d%02d%02d", $1,$2,$3}')
     if [ $ver_fmt -lt 10703 ]; then
         # for <scylla-1.2
-        if [ ! -f /usr/lib/scylla/scylla_config_get.py ]; then
+        if [ ! -f /opt/scylladb/lib/scylla/scylla_config_get.py ]; then
             echo
             echo "Error: Upgrading from scylla-$ver to scylla-{{version}} is not supported."
             echo "Please upgrade to scylla-1.7.3 or later, before upgrade to {{version}}."
             echo
             exit 1
         fi
-        commitlog_directory=$(/usr/lib/scylla/scylla_config_get.py -g commitlog_directory)
+        commitlog_directory=$(/opt/scylladb/lib/scylla/scylla_config_get.py -g commitlog_directory)
         commitlog_files=$(ls $commitlog_directory | wc -l)
         if [ $commitlog_files -ne 0 ]; then
             echo
@@ -266,6 +240,7 @@ fi
 {{#housekeeping}}
 %config(noreplace) %{_sysconfdir}/scylla.d/housekeeping.cfg
 {{/housekeeping}}
+%{_sysconfdir}/profile.d/scylla-bin.*
 
 
 %package kernel-conf

@@ -1,1 +1,1 @@
-/usr/lib/scylla/scylla_ec2_check
+/opt/scylladb/lib/scylla/scylla_ec2_check

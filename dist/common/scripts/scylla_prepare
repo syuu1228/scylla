@@ -54,7 +54,7 @@ if __name__ == '__main__':
         nr_hugepages = cfg.get('NR_HUGEPAGES')
         run('modprobe uio')
         run('modprobe uio_pci_generic')
-        run('/usr/lib/scylla/dpdk-devbind.py --force --bind=uio_pci_generic {ETHPCIID}'.format(ETHPCIID=ethpciid))
+        run('/opt/scylladb/lib/scylla/dpdk-devbind.py --force --bind=uio_pci_generic {ETHPCIID}'.format(ETHPCIID=ethpciid))
         for n in glob.glob('/sys/devices/system/node/node?'):
             with open('{n}/hugepages/hugepages-2048kB/nr_hugepages'.format(n=n), 'w') as f:
                 f.write(nr_hugepages)
@@ -66,6 +66,6 @@ if __name__ == '__main__':
         ifname = cfg.get('IFNAME')
         if set_nic  == 'yes':
             create_perftune_conf(ifname)
-            run('/usr/lib/scylla/posix_net_conf.sh {IFNAME} --options-file /etc/scylla.d/perftune.yaml'.format(IFNAME=ifname))
+            run('/opt/scylladb/lib/scylla/posix_net_conf.sh {IFNAME} --options-file /etc/scylla.d/perftune.yaml'.format(IFNAME=ifname))
 
-    run('/usr/lib/scylla/scylla-blocktune')
+    run('/opt/scylladb/lib/scylla/scylla-blocktune')

@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
             blocktune.tune_fs(data_dir, '2')
             try:
-                subprocess.check_call(["iotune",
+                subprocess.check_call(["/opt/scylladb/bin/iotune",
                                        "--evaluation-directory", data_dir,
                                        "--format", "envfile",
                                        "--options-file", "/etc/scylla.d/io.conf",
@@ -102,6 +102,6 @@ if __name__ == "__main__":
                               "This is a non-supported setup, and performance is expected to be very bad.\n"
                               "For better performance, placing your data on XFS-formatted directories is required.\n"
                               "To override this error, enable developer mode as follow:\n"
-                              "sudo /usr/lib/scylla/scylla_dev_mode_setup --developer-mode 1", data_dir)
+                              "sudo /opt/scylladb/lib/scylla/scylla_dev_mode_setup --developer-mode 1", data_dir)
                 sys.exit(1)
 

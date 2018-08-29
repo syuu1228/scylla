@@ -357,7 +357,7 @@ def colorprint(msg, **kwargs):
 
 def get_mode_cpuset(nic, mode):
     try:
-        mode_cpu_mask=out('/usr/lib/scylla/perftune.py --tune net --nic "{nic}" --mode "{mode}" --get-cpu-mask'.format(nic=nic, mode=mode))
+        mode_cpu_mask=out('/opt/scylladb/lib/scylla/perftune.py --tune net --nic "{nic}" --mode "{mode}" --get-cpu-mask'.format(nic=nic, mode=mode))
         return hex2list(mode_cpu_mask)
     except subprocess.CalledProcessError:
         return '-1'
@@ -386,7 +386,7 @@ def create_perftune_conf(nic='eth0'):
     if os.path.exists('/etc/scylla.d/perftune.yaml'):
         return
     mode=get_tune_mode(nic)
-    yaml=out('/usr/lib/scylla/perftune.py --tune net --nic "{nic}" --mode {mode} --dump-options-file'.format(nic=nic, mode=mode))
+    yaml=out('/opt/scylladb/lib/scylla/perftune.py --tune net --nic "{nic}" --mode {mode} --dump-options-file'.format(nic=nic, mode=mode))
     with open('/etc/scylla.d/perftune.yaml', 'w') as f:
         f.write(yaml)
 

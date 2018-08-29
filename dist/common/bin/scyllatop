@@ -2,4 +2,4 @@
 #
 #  Copyright (C) 2016 ScyllaDB
 
-exec python /usr/lib/scylla/scyllatop/scyllatop.py $@
+exec python /opt/scylladb/lib/scylla/scyllatop/scyllatop.py $@
