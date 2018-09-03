@@ -1,5 +1,5 @@
 etc/scylla.d
-usr/lib/scylla
+opt/scylladb/lib/scylla
 var/lib/scylla
 var/lib/scylla/data
 var/lib/scylla/commitlog

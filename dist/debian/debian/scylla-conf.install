@@ -1,2 +1,3 @@
 conf/scylla.yaml etc/scylla
 conf/cassandra-rackdc.properties etc/scylla
+dist/common/profile.d/scylla-bin.* etc/profile.d

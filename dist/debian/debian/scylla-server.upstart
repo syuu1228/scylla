@@ -28,9 +28,9 @@ env HOME=/var/lib/scylla
 
 pre-start script
     if [ "$AMI" = "yes" ]; then
-        sudo /usr/lib/scylla/scylla-ami/scylla_ami_setup
+        sudo /opt/scylladb/lib/scylla/scylla-ami/scylla_ami_setup
     fi
-    sudo /usr/lib/scylla/scylla_prepare
+    sudo /opt/scylladb/lib/scylla/scylla_prepare
 end script
 
 script
@@ -42,9 +42,9 @@ script
         . "$i"
     done
     export SCYLLA_CONF SCYLLA_HOME
-    exec /usr/bin/scylla $SCYLLA_ARGS $SEASTAR_IO $DEV_MODE $CPUSET
+    exec /opt/scylladb/bin/scylla $SCYLLA_ARGS $SEASTAR_IO $DEV_MODE $CPUSET
 end script
 
 post-stop script
-    sudo /usr/lib/scylla/scylla_stop
+    sudo /opt/scylladb/lib/scylla/scylla_stop
 end script

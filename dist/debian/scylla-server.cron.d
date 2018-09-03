@@ -1,1 +1,1 @@
-0 0 * * sat   root	/usr/lib/scylla/scylla_delay_fstrim
+0 0 * * sat   root	/opt/scylladb/lib/scylla/scylla_delay_fstrim

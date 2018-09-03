@@ -4,25 +4,18 @@ PRODUCT=scylla
 
 . /etc/os-release
 print_usage() {
-    echo "build_deb.sh -target <codename> --dist --rebuild-dep --jobs 2"
+    echo "build_deb.sh -target <codename> --dist --rebuild-dep --jobs 2 --reloc-tar build/release/scylla-package.tar.xz"
     echo "  --target target distribution codename"
     echo "  --dist  create a public distribution package"
-    echo "  --no-clean  don't rebuild pbuilder tgz"
     echo "  --jobs  specify number of jobs"
+    echo "  --reloc-pkg specify relocatable package path"
     exit 1
-}
-install_deps() {
-    echo Y | sudo mk-build-deps
-    DEB_FILE=`ls *-build-deps*.deb`
-    sudo gdebi -n $DEB_FILE
-    sudo rm -f $DEB_FILE
-    sudo dpkg -P ${DEB_FILE%%_*.deb}
 }
 
 DIST="false"
 TARGET=
-NO_CLEAN=0
-JOBS=0
+DEB_BUILD_OPTIONS=
+RELOC_PKG=build/release/scylla-package.tar.xz
 while [ $# -gt 0 ]; do
     case "$1" in
         "--dist")
@@ -33,12 +26,12 @@ while [ $# -gt 0 ]; do
             TARGET=$2
             shift 2
             ;;
-        "--no-clean")
-            NO_CLEAN=1
-            shift 1
-            ;;
         "--jobs")
-            JOBS=$2
+            DEB_BUILD_OPTIONS="parallel=$2"
+            shift 2
+            ;;
+        "--reloc-pkg")
+            RELOC_PKG=$2
             shift 2
             ;;
         *)
@@ -86,10 +79,13 @@ if [ "$(arch)" != "x86_64" ]; then
     echo "Unsupported architecture: $(arch)"
     exit 1
 fi
+if [ ! -f $RELOC_PKG ]; then
+    echo "run dist/reloc/build_reloc.sh before running build_rpm.sh"
+    exit 1
+fi
 
-if [ -e debian ] || [ -e build/release ]; then
-    sudo rm -rf debian build
-    mkdir build
+if [ -e debian ]; then
+    sudo rm -rf debian
 fi
 if is_debian_variant; then
     sudo apt-get -y update
@@ -105,8 +101,8 @@ fi
 if [ ! -f /usr/bin/python ]; then
     pkg_install python
 fi
-if [ ! -f /usr/sbin/pbuilder ]; then
-    pkg_install pbuilder
+if [ ! -f /usr/sbin/debuild ]; then
+    pkg_install devscripts
 fi
 if [ ! -f /usr/bin/dh_testdir ]; then
     pkg_install debhelper
@@ -134,11 +130,17 @@ if [ -z "$TARGET" ]; then
     fi
 fi
 
-VERSION=$(./SCYLLA-VERSION-GEN)
-SCYLLA_VERSION=$(cat build/SCYLLA-VERSION-FILE | sed 's/\.rc/~rc/')
-SCYLLA_RELEASE=$(cat build/SCYLLA-RELEASE-FILE)
-echo $VERSION > version
-./scripts/git-archive-all --extra version --force-submodules --prefix $PRODUCT-server ../$PRODUCT-server_$SCYLLA_VERSION-$SCYLLA_RELEASE.orig.tar.gz
+
+RELOC_PKG_FULLPATH=$(readlink -f $RELOC_PKG)
+RELOC_PKG_BASENAME=$(basename $RELOC_PKG)
+mkdir -p build/scylla-package
+cd build/scylla-package
+tar xvpf $RELOC_PKG_FULLPATH
+
+SCYLLA_VERSION=$(cat SCYLLA-VERSION-FILE)
+SCYLLA_RELEASE=$(cat SCYLLA-RELEASE-FILE)
+
+ln -fv $RELOC_PKG_FULLPATH ../$PRODUCT-server_$SCYLLA_VERSION-$SCYLLA_RELEASE.orig.tar.xz
 
 cp -a dist/debian/debian debian
 if [ "$PRODUCT" != "scylla" ]; then
@@ -146,9 +148,9 @@ if [ "$PRODUCT" != "scylla" ]; then
         mv $i ${i/scylla-/$PRODUCT-}
     done
 fi
-cp dist/common/sysconfig/scylla-server debian/$PRODUCT-server.default
+ln -fv dist/common/sysconfig/scylla-server debian/$PRODUCT-server.default
 if [ "$TARGET" = "trusty" ]; then
-    cp dist/debian/scylla-server.cron.d debian/
+    ln -fv dist/debian/scylla-server.cron.d debian/
 fi
 if is_debian $TARGET; then
     REVISION="1~$TARGET"
@@ -172,23 +174,9 @@ if [ "$TARGET" != "trusty" ]; then
     pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > debian/${SERVER_SERVICE_PREFIX}scylla-server.service
     pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > debian/$PRODUCT-server.scylla-housekeeping-daily.service
     pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > debian/$PRODUCT-server.scylla-housekeeping-restart.service
-    cp dist/common/systemd/scylla-fstrim.service debian/$PRODUCT-server.scylla-fstrim.service
-    cp dist/common/systemd/node-exporter.service debian/$PRODUCT-server.node-exporter.service
+    ln -fv dist/common/systemd/scylla-fstrim.service debian/$PRODUCT-server.scylla-fstrim.service
+    ln -fv dist/common/systemd/node-exporter.service debian/$PRODUCT-server.node-exporter.service
 fi
 
-if [ $NO_CLEAN -eq 0 ]; then
-    sudo rm -fv /var/cache/pbuilder/$PRODUCT-server-$TARGET.tgz
-    sudo PRODUCT=$PRODUCT DIST=$TARGET /usr/sbin/pbuilder clean --configfile ./dist/debian/pbuilderrc
-    sudo PRODUCT=$PRODUCT DIST=$TARGET /usr/sbin/pbuilder create --configfile ./dist/debian/pbuilderrc --allow-untrusted
-fi
-if [ $JOBS -ne 0 ]; then
-    DEB_BUILD_OPTIONS="parallel=$JOBS"
-fi
-sudo PRODUCT=$PRODUCT DIST=$TARGET /usr/sbin/pbuilder update --configfile ./dist/debian/pbuilderrc --allow-untrusted
-if [ "$TARGET" = "trusty" ] || [ "$TARGET" = "xenial" ] || [ "$TARGET" = "yakkety" ] || [ "$TARGET" = "zesty" ] || [ "$TARGET" = "artful" ] || [ "$TARGET" = "bionic" ]; then
-    sudo PRODUCT=$PRODUCT DIST=$TARGET /usr/sbin/pbuilder execute --configfile ./dist/debian/pbuilderrc --save-after-exec dist/debian/ubuntu_enable_ppa.sh
-elif [ "$TARGET" = "jessie" ] || [ "$TARGET" = "stretch" ]; then
-    sudo PRODUCT=$PRODUCT DIST=$TARGET /usr/sbin/pbuilder execute --configfile ./dist/debian/pbuilderrc --save-after-exec dist/debian/debian_install_gpgkey.sh
-fi
-sudo -E PRODUCT=$PRODUCT DIST=$TARGET DEB_BUILD_OPTIONS=$DEB_BUILD_OPTIONS pdebuild --configfile ./dist/debian/pbuilderrc --buildresult build/debs
-sudo chown -Rv $(id -u -n):$(id -g -n) build/debs
+debuild -rfakeroot -us -uc
+cd -
