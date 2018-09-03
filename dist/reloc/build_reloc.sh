@@ -40,10 +40,15 @@ fi
 if [ "$CLEAN" = "yes" ]; then
     rm -rf build
 fi
-if [ -f build/release/scylla-package.tar ]; then
-    rm build/release/scylla-package.tar
+if [ "$ID" != "fedora" ]; then
+    echo "Only Fedora is supported distribution for build_reloc.sh"
+    exit 1
+fi
+
+if [ -f build/release/scylla-package.tar.xz ]; then
+    rm build/release/scylla-package.tar.xz
 fi
 
 sudo ./install-dependencies.sh
 ./SCYLLA-VERSION-GEN
-ninja-build $JOBS build/release/scylla-package.tar
+ninja-build $JOBS build/release/scylla-package.tar.xz
