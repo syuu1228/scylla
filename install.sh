@@ -31,6 +31,7 @@ Options:
   --prefix /prefix         directory prefix (default /usr)
   --housekeeping           enable housekeeping service
   --target centos          specify target distribution
+  --skip-template          skip generating files from mustache template
   --help                   this helpful message
 EOF
     exit 1
@@ -40,6 +41,7 @@ root=/
 prefix=/usr
 housekeeping=false
 target=centos
+skip_template=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -53,6 +55,10 @@ while [ $# -gt 0 ]; do
             ;;
         "--housekeeping")
             housekeeping=true
+            shift 1
+            ;;
+        "--skip-template")
+            skip_template=true
             shift 1
             ;;
         "--target")
@@ -73,12 +79,13 @@ rprefix="$root/$prefix"
 retc="$root/etc"
 rdoc="$rprefix/share/doc"
 
-MUSTACHE_DIST="\"redhat\": true, \"$target\": true, \"target\": \"$target\""
-mkdir -p build
-pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-server.service
-pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-daily.service
-pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-restart.service
-
+if [ "$skip_template" = "false" ]; then
+    MUSTACHE_DIST="\"redhat\": true, \"$target\": true, \"target\": \"$target\""
+    mkdir -p build
+    pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-server.service
+    pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-daily.service
+    pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-restart.service
+fi
 
 install -m755 -d "$retc/sysconfig" "$retc/security/limits.d"
 install -m755 -d "$retc/scylla.d" "$rprefix/lib/sysctl.d"
