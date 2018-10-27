@@ -7,6 +7,9 @@ Group:          Applications/Databases
 License:        AGPLv3
 URL:            http://www.scylladb.com/
 Source0:        {{reloc_pkg}}
+Source1:        scylla-server.service
+Source2:        scylla-housekeeping-daily.service
+Source3:        scylla-housekeeping-restart.service
 Requires:       {{product}}-server = {{version}} {{product}}-jmx = {{version}} {{product}}-tools = {{version}} {{product}}-tools-core = {{version}} {{product}}-kernel-conf = {{version}}
 Obsoletes:	scylla-server < 1.1
 
@@ -44,7 +47,6 @@ Group:          Applications/Databases
 Summary:        The Scylla database server
 License:        AGPLv3
 URL:            http://www.scylladb.com/
-BuildRequires: python2-pystache
 {{#fedora}}
 Requires: python3 python3-PyYAML
 {{/fedora}}
@@ -64,11 +66,14 @@ defines=()
 
 %install
 {{#housekeeping}}
-./install.sh --root "$RPM_BUILD_ROOT" --housekeeping --target {{target}}
+./install.sh --root "$RPM_BUILD_ROOT" --housekeeping --skip-template --target {{target}}
 {{/housekeeping}}
 {{^housekeeping}}
-./install.sh --root "$RPM_BUILD_ROOT" --target {{target}}
+./install.sh --root "$RPM_BUILD_ROOT" --skip-template --target {{target}}
 {{/housekeeping}}
+install -m644 %{SOURCE1} $RPM_BUILD_ROOT%{_unitdir}/
+install -m644 %{SOURCE2} $RPM_BUILD_ROOT%{_unitdir}/
+install -m644 %{SOURCE3} $RPM_BUILD_ROOT%{_unitdir}/
 
 %pre server
 getent group scylla || /usr/sbin/groupadd scylla 2> /dev/null || :

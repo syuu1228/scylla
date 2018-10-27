@@ -114,13 +114,16 @@ fi
 RELOC_PKG_BASENAME=$(basename $RELOC_PKG)
 SCYLLA_VERSION=$(cat SCYLLA-VERSION-FILE)
 SCYLLA_RELEASE=$(cat SCYLLA-RELEASE-FILE)
-MUSTACHE_DIST="\"$TARGET\": true, \"target\": \"$TARGET\""
+MUSTACHE_DIST="\"redhat\": true, \"$TARGET\": true, \"target\": \"$TARGET\""
 
 RPMBUILD=$(readlink -f ../)
 mkdir -p $RPMBUILD/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
 
 ln -fv $RELOC_PKG $RPMBUILD/SOURCES/
 pystache dist/redhat/scylla.spec.mustache "{ \"version\": \"$SCYLLA_VERSION\", \"release\": \"$SCYLLA_RELEASE\", \"housekeeping\": $DIST, \"product\": \"$PRODUCT\", \"$PRODUCT\": true, \"reloc_pkg\": \"$RELOC_PKG_BASENAME\", $MUSTACHE_DIST }" > $RPMBUILD/SPECS/scylla.spec
+pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > $RPMBUILD/SOURCES/scylla-server.service
+pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > $RPMBUILD/SOURCES/scylla-housekeeping-daily.service
+pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > $RPMBUILD/SOURCES/scylla-housekeeping-restart.service
 if [ "$TARGET" = "centos7" ]; then
     rpmbuild -ba --define "_topdir $RPMBUILD" --define "dist .el7" $RPM_JOBS_OPTS $RPMBUILD/SPECS/scylla.spec
 else
