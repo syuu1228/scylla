@@ -7,12 +7,14 @@ print_usage() {
     echo "build_deb.sh -target <codename> --dist --rebuild-dep --reloc-pkg build/release/scylla-package.tar.gz"
     echo "  --dist  create a public distribution package"
     echo "  --reloc-pkg specify relocatable package path"
+    echo "  --nodeps skip installing dependencies"
     exit 1
 }
 
 DIST="false"
 TARGET=stable
 RELOC_PKG=
+NODEPS=
 while [ $# -gt 0 ]; do
     case "$1" in
         "--dist")
@@ -22,6 +24,10 @@ while [ $# -gt 0 ]; do
         "--reloc-pkg")
             RELOC_PKG=$2
             shift 2
+            ;;
+        "--nodeps")
+            NODEPS=yes
+            shift 1
             ;;
         *)
             print_usage
@@ -36,9 +42,9 @@ is_debian_variant() {
     [ -f /etc/debian_version ]
 }
 pkg_install() {
-    if is_redhat_variant; then
+    if [ -z "$NODEPS" ] && is_redhat_variant; then
         sudo yum install -y $1
-    elif is_debian_variant; then
+    elif [ -z "$NODEPS" ] && is_debian_variant; then
         sudo apt-get install -y $1
     else
         echo "Requires to install following command: $1"

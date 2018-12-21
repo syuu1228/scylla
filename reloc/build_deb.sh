@@ -5,6 +5,7 @@ print_usage() {
     echo "build_deb.sh -target <codename> --dist --rebuild-dep --reloc-pkg build/release/scylla-package.tar.gz"
     echo "  --dist  create a public distribution package"
     echo "  --reloc-pkg specify relocatable package path"
+    echo "  --nodeps skip installing dependencies"
     exit 1
 }
 
@@ -20,6 +21,10 @@ while [ $# -gt 0 ]; do
             OPTS="$OPTS $1 $(readlink -f $2)"
             RELOC_PKG=$2
             shift 2
+            ;;
+        "--nodeps")
+            OPTS="$OPTS $1"
+            shift 1
             ;;
         *)
             print_usage
