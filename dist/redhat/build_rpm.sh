@@ -9,11 +9,13 @@ print_usage() {
     echo "  --target target distribution in mock cfg name"
     echo "  --xtrace print command traces before executing command"
     echo "  --reloc-pkg specify relocatable package path"
+    echo "  --nodeps skip installing dependencies"
     exit 1
 }
 DIST=false
 TARGET=
 RELOC_PKG=
+NODEPS=
 while [ $# -gt 0 ]; do
     case "$1" in
         "--dist")
@@ -32,6 +34,10 @@ while [ $# -gt 0 ]; do
             RELOC_PKG=$2
             shift 2
             ;;
+        "--nodeps")
+            NODEPS=yes
+            shift 1
+            ;;
         *)
             print_usage
             ;;
@@ -42,7 +48,7 @@ is_redhat_variant() {
     [ -f /etc/redhat-release ]
 }
 pkg_install() {
-    if is_redhat_variant; then
+    if [ -z "$NODEPS" ] && is_redhat_variant; then
         sudo yum install -y $1
     else
         echo "Requires to install following command: $1"

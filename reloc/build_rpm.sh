@@ -7,6 +7,7 @@ print_usage() {
     echo "  --target target distribution in mock cfg name"
     echo "  --xtrace print command traces before executing command"
     echo "  --reloc-pkg specify relocatable package path"
+    echo "  --nodeps skip installing dependencies"
     exit 1
 }
 RELOC_PKG=$(readlink -f build/release/scylla-package.tar.gz)
@@ -30,6 +31,10 @@ while [ $# -gt 0 ]; do
             OPTS="$OPTS $1 $(readlink -f $2)"
             RELOC_PKG=$2
             shift 2
+            ;;
+        "--nodeps")
+            OPTS="$OPTS $1"
+            shift 1
             ;;
         *)
             print_usage
