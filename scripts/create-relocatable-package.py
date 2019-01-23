@@ -107,7 +107,7 @@ b="$(basename "$x")"
 d="$(dirname "$x")/.."
 ldso="$d/libexec/$b"
 realexe="$d/libexec/$b.bin"
-LD_LIBRARY_PATH="$d/lib" exec -a "$0" "$ldso" "$realexe" "$@"
+LD_LIBRARY_PATH="$d/lib/scylla" exec -a "$0" "$ldso" "$realexe" "$@"
 '''
 
 for exe in executables:
@@ -120,11 +120,11 @@ for exe in executables:
     ar.addfile(ti, fileobj=io.BytesIO(thunk))
     ti = tarfile.TarInfo(name='libexec/' + basename)
     ti.type = tarfile.SYMTYPE
-    ti.linkname = '../lib/ld.so'
+    ti.linkname = '../lib/scylla/ld.so'
     ti.mtime = os.stat(exe).st_mtime
     ar.addfile(ti)
 for lib, libfile in libs.items():
-    ar.add(libfile, arcname='lib/' + lib)
+    ar.add(libfile, arcname='lib/scylla/' + lib)
 ar.add('conf')
 ar.add('dist')
 ar.add('build/SCYLLA-RELEASE-FILE', arcname='SCYLLA-RELEASE-FILE')
