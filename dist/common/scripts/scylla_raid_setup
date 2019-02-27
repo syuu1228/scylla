@@ -80,6 +80,9 @@ if __name__ == '__main__':
         print('{} is already mounted'.format(mount_at))
         sys.exit(1)
 
+    if is_redhat_variant():
+        run('yum install -y mdadm xfsprogs')
+
     if is_debian_variant():
         run('env DEBIAN_FRONTEND=noninteractive apt-get -y install mdadm xfsprogs')
     elif is_gentoo_variant():
