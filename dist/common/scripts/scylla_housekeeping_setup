@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+# Copyright 2019 ScyllaDB
+#
+
+#
+# This file is part of Scylla.
+#
+# Scylla is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Scylla is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Scylla.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+import argparse
+from scylla_util import *
+
+if __name__ == '__main__':
+    if os.getuid() > 0:
+        print('Requires root permission.')
+        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Setup scylla-housekeeping.')
+    parser.add_argument('--version_check', action='store_true', default=False)
+    args = parser.parse_args()
+
+    if not os.path.exists('/etc/scylla.d/housekeeping.cfg'):
+        if args.version_check:
+            with open('/etc/scylla.d/housekeeping.cfg', 'w') as f:
+                f.write('[housekeeping]\ncheck-version: True\n')
+        else:
+            with open('/etc/scylla.d/housekeeping.cfg', 'w') as f:
+                f.write('[housekeeping]\ncheck-version: False\n')
+
+    cur_version=out('scylla --version', exception=False)
+    if len(cur_version) > 0:
+        if is_debian_variant():
+            new_version=out('sudo -u scylla /usr/lib/scylla/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid --repo-files \'/etc/apt/sources.list.d/scylla*.list\' version --version {} --mode i'.format(cur_version), shell=True, exception=False)
+        else:
+            new_version=out('sudo -u scylla /usr/lib/scylla/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid --repo-files \'/etc/yum.repos.d/scylla*.repo\' version --version {} --mode i'.format(cur_version), shell=True, exception=False)
+        if len(new_version) > 0:
+            print(new_version)
+    else:
+        if is_debian_variant():
+            new_version=out('sudo -u scylla /usr/lib/scylla/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid --repo-files \'/etc/apt/sources.list.d/scylla*.list\' version --version unknown --mode u', shell=True, exception=False)
+        else:
+            new_version=out('sudo -u scylla /usr/lib/scylla/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid --repo-files \'/etc/yum.repos.d/scylla*.repo\' version --version unknown --mode u', shell=True, exception=False)
+        print('A Scylla executable was not found, please check your installation {}'.format(new_version))
