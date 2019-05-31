@@ -35,6 +35,8 @@ if __name__ == "__main__":
     parser.add_argument('--ami', dest='ami', action='store_true',
                         help='configure AWS AMI')
     args = parser.parse_args()
+    scylla_util.switch_to_scylla_user()
+    scylla_util.reset_umask_to_system_default()
 
     cpudata = scylla_util.scylla_cpuinfo()
     if not scylla_util.is_developer_mode():

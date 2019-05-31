@@ -30,6 +30,8 @@ import urllib.parse
 import urllib.request
 import yaml
 import psutil
+import pwd
+import grp
 
 def curl(url, byte=False):
     max_retries = 5
@@ -500,6 +502,23 @@ def get_set_nic_and_disks_config_value(cfg):
         # For backwards compatibility
         return cfg.get('SET_NIC')
 
+def switch_to_scylla_user():
+    if is_redhat_variant():
+        cfg = sysconfig_parser('/etc/sysconfig/scylla-server')
+    else:
+        cfg = sysconfig_parser('/etc/default/scylla-server')
+    user = cfg.get('USER')
+    group = cfg.get('GROUP')
+    uid = pwd.getpwnam(user).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    if os.getuid() != 0 and os.getuid() != uid:
+        raise PermissionError('Requires root permission')
+    os.setgroups([])
+    os.setgid(gid)
+    os.setuid(uid)
+
+def reset_umask_to_system_default():
+    os.umask(0o22)
 
 class SystemdException(Exception):
     pass

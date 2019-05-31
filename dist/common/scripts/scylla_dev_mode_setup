@@ -34,6 +34,8 @@ if __name__ == '__main__':
                         help='enable/disable developer mode')
     args = parser.parse_args()
 
+    switch_to_scylla_user()
+    reset_umask_to_system_default()
     if args.developer_mode == 0:
         with open('/etc/scylla.d/dev-mode.conf', 'w') as f:
             f.close()
