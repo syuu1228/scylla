@@ -92,6 +92,10 @@ AmbientCapabilities=CAP_SYS_NICE
 EOS
     fi
 fi
+
+# For upgrade, we need to change owner config files which already exists
+chown -R scylla:scylla /etc/scylla.d
+
 %systemd_post scylla-server.service
 
 %preun server
@@ -115,8 +119,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %config(noreplace) %{_sysconfdir}/sysconfig/scylla-server
 %{_sysconfdir}/security/limits.d/scylla.conf
-%attr(0755,root,root) %dir %{_sysconfdir}/scylla.d
-%config(noreplace) %{_sysconfdir}/scylla.d/*.conf
+%attr(0755,scylla,scylla) %dir %{_sysconfdir}/scylla.d
+%attr(0644,scylla,scylla) %config(noreplace) %{_sysconfdir}/scylla.d/*.conf
 %{_docdir}/scylla/README.md
 %{_docdir}/scylla/README-DPDK.md
 %{_docdir}/scylla/NOTICE.txt
@@ -227,7 +231,7 @@ fi
 %config(noreplace) %{_sysconfdir}/scylla/scylla.yaml
 %config(noreplace) %{_sysconfdir}/scylla/cassandra-rackdc.properties
 {{#housekeeping}}
-%config(noreplace) %{_sysconfdir}/scylla.d/housekeeping.cfg
+%attr(0644,scylla,scylla) %config(noreplace) %{_sysconfdir}/scylla.d/housekeeping.cfg
 {{/housekeeping}}
 
 

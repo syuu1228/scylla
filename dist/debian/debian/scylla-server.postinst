@@ -21,6 +21,7 @@ if [ "$1" = configure ]; then
         addgroup --system scylla
         adduser scylla scylla
     fi
+    chown -R scylla:scylla /etc/scylla.d
     chown -R scylla:scylla /var/lib/scylla
     chown -R scylla:scylla /var/lib/scylla-housekeeping
 fi
