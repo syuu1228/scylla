@@ -96,25 +96,16 @@ rdoc="$rprefix/share/doc"
 
 is_redhat=false
 is_debian=false
-MUSTACHE_DIST="\"$target\": true, \"target\": \"$target\""
 if [ "$disttype" = "redhat" ]; then
-    MUSTACHE_DIST="\"redhat\": true, $MUSTACHE_DIST"
     is_redhat=true
     sysconfdir=sysconfig
 elif [ "$disttype" = "debian" ]; then
-    MUSTACHE_DIST="\"debian\": true, $MUSTACHE_DIST"
     is_debian=true
     sysconfdir=default
 else
     print_usage
     exit 1
 fi
-
-mkdir -p build
-pystache dist/common/systemd/scylla-server.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-server.service
-pystache dist/common/systemd/scylla-housekeeping-daily.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-daily.service
-pystache dist/common/systemd/scylla-housekeeping-restart.service.mustache "{ $MUSTACHE_DIST }" > build/scylla-housekeeping-restart.service
-
 
 if [ -z "$pkg" ] || [ "$pkg" = "conf" ]; then
     install -d -m755 "$retc"/scylla
@@ -140,9 +131,14 @@ if [ -z "$pkg" ] || [ "$pkg" = "server" ]; then
     install -m644 dist/common/scylla.d/*.conf -Dt "$retc"/scylla.d
 
     install -d -m755 "$retc"/scylla "$rusr/lib/systemd/system" "$rusr/bin" "$rprefix/bin" "$rprefix/libexec" "$rprefix/libreloc" "$rprefix/scripts"
-    install -m644 build/*.service -Dt "$rusr"/lib/systemd/system
     install -m644 dist/common/systemd/*.service -Dt "$rusr"/lib/systemd/system
     install -m644 dist/common/systemd/*.timer -Dt "$rusr"/lib/systemd/system
+    for i in scylla-server scylla-housekeeping-daily scylla-housekeeping-restart; do
+        if [ -d dist/$disttype/systemd/$i.service.d ]; then
+            install -d -m755 "$retc"/systemd/system/$i.service.d
+            install -m644 dist/$disttype/systemd/$i.service.d/*.conf "$retc"/systemd/system/$i.service.d
+        fi
+    done
     install -m755 seastar/scripts/seastar-cpu-map.sh -Dt "$rprefix"/scripts
     install -m755 seastar/dpdk/usertools/dpdk-devbind.py -Dt "$rprefix"/scripts
     install -m755 bin/* -Dt "$rprefix/bin"
