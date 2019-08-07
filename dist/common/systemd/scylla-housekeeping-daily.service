@@ -6,12 +6,7 @@ After=network.target
 Type=simple
 User=scylla
 Group=scylla
-{{#debian}}
-ExecStart=/opt/scylladb/scripts/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid -q -c /etc/scylla.d/housekeeping.cfg --repo-files '/etc/apt/sources.list.d/scylla*.list' version --mode d
-{{/debian}}
-{{#redhat}}
 ExecStart=/opt/scylladb/scripts/scylla-housekeeping --uuid-file /var/lib/scylla-housekeeping/housekeeping.uuid -q -c /etc/scylla.d/housekeeping.cfg --repo-files '/etc/yum.repos.d/scylla*.repo' version --mode d
-{{/redhat}}
 
 [Install]
 WantedBy=multi-user.target
