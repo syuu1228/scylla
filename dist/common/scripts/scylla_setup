@@ -262,6 +262,11 @@ if __name__ == '__main__':
         version_check = interactive_ask_service('Do you want to enable Scylla to check if there is a newer version of Scylla available?', 'Yes - start the Scylla-housekeeping service to check for a newer version. This check runs periodically. No - skips this step.', version_check)
         args.no_version_check = not version_check
         if version_check:
+            if is_debian_variant():
+                makedirs('/etc/systemd/system/scylla-housekeeping-daily.service.d')
+                shutil.copy('/opt/scylladb/misc/debian/systemd/scylla-housekeeping-daily.service.d/apt-repo.conf', '/etc/systemd/system/scylla-housekeeping-daily.service.d')
+                makedirs('/etc/systemd/system/scylla-housekeeping-restart.service.d')
+                shutil.copy('/opt/scylladb/misc/debian/systemd/scylla-housekeeping-daily.service.d/apt-repo.conf', '/etc/systemd/system/scylla-housekeeping-restart.service.d')
             with open('/etc/scylla.d/housekeeping.cfg', 'w') as f:
                 f.write('[housekeeping]\ncheck-version: True\n')
             if is_systemd():

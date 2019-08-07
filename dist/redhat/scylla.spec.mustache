@@ -64,7 +64,10 @@ defines=()
 {{#housekeeping}}
 install_arg="--housekeeping"
 {{/housekeeping}}
-./install.sh --root "$RPM_BUILD_ROOT" $install_arg --target {{target}} --disttype "redhat"
+./install.sh --root "$RPM_BUILD_ROOT" $install_arg
+
+# misc/debian/systemd does not needed for Red Hat variants
+rm -rf $RPM_BUILD_ROOT/opt/scylladb/misc/debian
 
 %pre server
 getent group scylla || /usr/sbin/groupadd scylla 2> /dev/null || :
