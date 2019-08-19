@@ -31,7 +31,6 @@ Options:
   --prefix /prefix         directory prefix (default /usr)
   --python3 /opt/python3   path of the python3 interpreter relative to install root (default /opt/scylladb/python3/bin/python3)
   --housekeeping           enable housekeeping service
-  --target centos          specify target distribution
   --disttype [redhat|debian] specify type of distribution (redhat or debian)
   --pkg package            specify build package (server/conf/kernel-conf)
   --help                   this helpful message
@@ -42,7 +41,6 @@ EOF
 root=/
 prefix=/opt/scylladb
 housekeeping=false
-target=centos
 python3=/opt/scylladb/python3/bin/python3
 
 while [ $# -gt 0 ]; do
@@ -58,10 +56,6 @@ while [ $# -gt 0 ]; do
         "--housekeeping")
             housekeeping=true
             shift 1
-            ;;
-        "--target")
-            target="$2"
-            shift 2
             ;;
         "--python3")
             python3="$2"
