@@ -22,6 +22,7 @@
 
 set -e
 
+. /etc/os-release
 print_usage() {
     cat <<EOF
 Usage: install.sh [options]
@@ -31,7 +32,6 @@ Options:
   --prefix /prefix         directory prefix (default /usr)
   --python3 /opt/python3   path of the python3 interpreter relative to install root (default /opt/scylladb/python3/bin/python3)
   --housekeeping           enable housekeeping service
-  --disttype [redhat|debian] specify type of distribution (redhat or debian)
   --pkg package            specify build package (server/conf/kernel-conf)
   --help                   this helpful message
 EOF
@@ -61,10 +61,6 @@ while [ $# -gt 0 ]; do
             python3="$2"
             shift 2
             ;;
-        "--disttype")
-            disttype="$2"
-            shift 2
-            ;;
         "--pkg")
             pkg="$2"
             shift 2
@@ -88,17 +84,34 @@ retc="$root/etc"
 rusr="$root/usr"
 rdoc="$rprefix/share/doc"
 
-is_redhat=false
-is_debian=false
-if [ "$disttype" = "redhat" ]; then
-    is_redhat=true
-    sysconfdir=sysconfig
-elif [ "$disttype" = "debian" ]; then
-    is_debian=true
-    sysconfdir=default
+PPID_COMM=$(cat /proc/$PPID/comm)
+GPPID=$(echo $(ps --no-header -o ppid -p $PPID))
+GPPID_COMM=$(cat /proc/$GPPID/comm)
+
+sysconfdir="sysconfig"
+# detect rpmbuild for .rpm (could be cross build, don't use os-release)
+if [ "$PPID_COMM" = "sh" -a "$GPPID_COMM" = "rpmbuild" ]; then
+    disttype="redhat"
+# detect debuild for .deb (could be cross build, don't use os-release)
+elif [ "$PPID_COMM" = "rules" -a "$GPPID_COMM" = "dh" ]; then
+    disttype="debian"
+    sysconfdir="default"
+# others should be invoked from a shell, detect current OS by os-release
 else
-    print_usage
-    exit 1
+    if [ -n "$ID_LIKE" ]; then
+        id=$ID_LIKE
+    else
+        id=$ID
+    fi
+    if [ "$id" = "rhel" -o "$id" = "fedora" -o "$id" = "ol" ]; then
+        disttype="redhat"
+    elif [ "$id" = "debian" ]; then
+        distype="debian"
+        sysconfdir="default"
+    else
+        echo "Warning: unknown distribution $id, apply Red Hat variants configuration."
+        disttype="redhat"
+    fi
 fi
 
 if [ -z "$pkg" ] || [ "$pkg" = "conf" ]; then
@@ -106,9 +119,7 @@ if [ -z "$pkg" ] || [ "$pkg" = "conf" ]; then
     install -d -m755 "$retc"/scylla.d
     install -m644 conf/scylla.yaml -Dt "$retc"/scylla
     install -m644 conf/cassandra-rackdc.properties -Dt "$retc"/scylla
-    # XXX: since housekeeping.cfg is mistakenly belongs to different package
-    # in .rpm/.deb, we need this workaround to make package upgradable
-    if $is_redhat && $housekeeping; then
+    if $housekeeping; then
         install -m644 conf/housekeeping.cfg -Dt "$retc"/scylla.d
     fi
 fi
@@ -148,11 +159,6 @@ if [ -z "$pkg" ] || [ "$pkg" = "server" ]; then
     ln -srf "$rprefix/bin/scylla" "$rusr/bin/scylla"
     ln -srf "$rprefix/bin/iotune" "$rusr/bin/iotune"
 
-    # XXX: since housekeeping.cfg is mistakenly belongs to different package
-    # in .rpm/.deb, we need this workaround to make package upgradable
-    if $is_debian && $housekeeping; then
-        install -m644 conf/housekeeping.cfg -Dt "$retc"/scylla.d
-    fi
     install -d -m755 "$rdoc"/scylla
     install -m644 README.md -Dt "$rdoc"/scylla/
     install -m644 README-DPDK.md -Dt "$rdoc"/scylla
