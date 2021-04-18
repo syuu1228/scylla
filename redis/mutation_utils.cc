@@ -51,6 +51,28 @@ atomic_cell make_cell(const schema_ptr schema,
     return atomic_cell::make_live(type, api::new_timestamp(), value, atomic_cell::collection_member::no);
 }  
 
+class test_cas_request : public service::cas_request {
+private:
+    service::storage_proxy& _proxy;
+    schema_ptr _schema;
+    bytes& _key;
+    bytes& _data;
+    long _ttl;
+
+public:
+    test_cas_request(service::storage_proxy& proxy, redis::redis_options& options, bytes& key, bytes& data, long ttl)
+    : _proxy(proxy), _schema(get_schema(proxy, options.get_keyspace_name(), redis::STRINGs)), _key(key), _data(data), _ttl(ttl)  {}
+    virtual ~test_cas_request() = default;
+    virtual std::optional<mutation> apply(foreign_ptr<lw_shared_ptr<query::result>> qr, const query::partition_slice& slice, api::timestamp_type ts) override {
+        const column_definition& column = *_schema->get_column_definition(redis::DATA_COLUMN_NAME);
+        auto pkey = partition_key::from_single_value(*_schema, _key);
+        auto m = mutation(_schema, std::move(pkey));
+        auto cell = make_cell(_schema, *(column.type.get()), _data, _ttl);
+        m.set_clustered_cell(clustering_key::make_empty(), column, std::move(cell));
+        return m;
+    }
+};
+
 
 future<> write_hashes(service::storage_proxy& proxy, redis::redis_options& options, bytes&& key, bytes&& field, bytes&& data, long ttl, service_permit permit) {
     db::timeout_clock::time_point timeout = db::timeout_clock::now() + options.get_write_timeout();
@@ -80,9 +102,20 @@ mutation make_mutation(service::storage_proxy& proxy, const redis_options& optio
 
 future<> write_strings(service::storage_proxy& proxy, redis::redis_options& options, bytes&& key, bytes&& data, long ttl, service_permit permit) {
     db::timeout_clock::time_point timeout = db::timeout_clock::now() + options.get_write_timeout();
-    auto m = make_mutation(proxy, options, std::move(key), std::move(data), ttl);
+    auto schema = get_schema(proxy, options.get_keyspace_name(), redis::STRINGs);
+    const column_definition& column = *schema->get_column_definition(redis::DATA_COLUMN_NAME);
+    auto pkey = partition_key::from_single_value(*schema, key);
+    auto partition_range = dht::partition_range::make_singular(dht::decorate_key(*schema, std::move(pkey)));
+    dht::partition_range_vector partition_ranges;
+    partition_ranges.emplace_back(std::move(partition_range));
     auto write_consistency_level = options.get_write_consistency_level();
-    return proxy.mutate(std::vector<mutation> {std::move(m)}, write_consistency_level, timeout, nullptr, permit);
+    auto request = seastar::make_shared<test_cas_request>(proxy, options, key, data, ttl);
+    auto read_command = nullptr;
+    return proxy.cas(schema, request, read_command, partition_ranges,
+            {timeout, std::move(permit), options.get_client_state(), tracing::trace_state_ptr()},
+            db::consistency_level::LOCAL_SERIAL, db::consistency_level::LOCAL_QUORUM, timeout, timeout).then([] (bool is_applied) mutable {
+                return make_ready_future<>();
+    });
 }
 
 
