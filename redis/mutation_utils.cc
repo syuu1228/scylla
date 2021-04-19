@@ -102,6 +102,7 @@ mutation make_mutation(service::storage_proxy& proxy, const redis_options& optio
 }
 
 future<> write_strings(service::storage_proxy& proxy, redis::redis_options& options, bytes&& key, bytes&& data, long ttl, service_permit permit) {
+    // construct cas_request
     db::timeout_clock::time_point timeout = db::timeout_clock::now() + options.get_write_timeout();
     auto schema = get_schema(proxy, options.get_keyspace_name(), redis::STRINGs);
     const column_definition& column = *schema->get_column_definition(redis::DATA_COLUMN_NAME);
@@ -112,7 +113,7 @@ future<> write_strings(service::storage_proxy& proxy, redis::redis_options& opti
     auto write_consistency_level = options.get_write_consistency_level();
     auto request = seastar::make_shared<test_cas_request>(proxy, options, key, data, ttl);
 
-
+    // construct read command
     auto ps = partition_slice_builder(*schema).build();
     const auto max_result_size = proxy.get_max_result_size(ps);
     query::read_command read_cmd(schema->id(), schema->version(), ps, 1, gc_clock::now(), std::nullopt, 1, utils::UUID(), query::is_first_page::no, max_result_size, 0);
