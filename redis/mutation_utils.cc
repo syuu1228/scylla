@@ -52,7 +52,8 @@ atomic_cell make_cell(const schema_ptr schema,
     return atomic_cell::make_live(type, api::new_timestamp(), value, atomic_cell::collection_member::no);
 }  
 
-class test_cas_request : public service::cas_request {
+// cas_request sub-class for write_strings
+class write_strings_cas_request : public service::cas_request {
 private:
     service::storage_proxy& _proxy;
     schema_ptr _schema;
@@ -61,9 +62,9 @@ private:
     long _ttl;
 
 public:
-    test_cas_request(service::storage_proxy& proxy, redis::redis_options& options, bytes& key, bytes& data, long ttl)
+    write_strings_cas_request(service::storage_proxy& proxy, redis::redis_options& options, bytes& key, bytes& data, long ttl)
     : _proxy(proxy), _schema(get_schema(proxy, options.get_keyspace_name(), redis::STRINGs)), _key(key), _data(data), _ttl(ttl)  {}
-    virtual ~test_cas_request() = default;
+    virtual ~write_strings_cas_request() = default;
     virtual std::optional<mutation> apply(foreign_ptr<lw_shared_ptr<query::result>> qr, const query::partition_slice& slice, api::timestamp_type ts) override {
         const column_definition& column = *_schema->get_column_definition(redis::DATA_COLUMN_NAME);
         auto pkey = partition_key::from_single_value(*_schema, _key);
@@ -111,7 +112,7 @@ future<> write_strings(service::storage_proxy& proxy, redis::redis_options& opti
     dht::partition_range_vector partition_ranges;
     partition_ranges.emplace_back(std::move(partition_range));
     auto write_consistency_level = options.get_write_consistency_level();
-    auto request = seastar::make_shared<test_cas_request>(proxy, options, key, data, ttl);
+    auto request = seastar::make_shared<write_strings_cas_request>(proxy, options, key, data, ttl);
 
     // construct read command
     auto ps = partition_slice_builder(*schema).build();
