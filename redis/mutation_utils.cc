@@ -29,6 +29,7 @@
 #include "redis/options.hh"
 #include "mutation.hh"
 #include "service_permit.hh"
+#include "partition_slice_builder.hh"
 
 using namespace seastar;
 
@@ -110,8 +111,13 @@ future<> write_strings(service::storage_proxy& proxy, redis::redis_options& opti
     partition_ranges.emplace_back(std::move(partition_range));
     auto write_consistency_level = options.get_write_consistency_level();
     auto request = seastar::make_shared<test_cas_request>(proxy, options, key, data, ttl);
-    auto read_command = nullptr;
-    return proxy.cas(schema, request, read_command, partition_ranges,
+
+
+    auto ps = partition_slice_builder(*schema).build();
+    const auto max_result_size = proxy.get_max_result_size(ps);
+    query::read_command read_cmd(schema->id(), schema->version(), ps, 1, gc_clock::now(), std::nullopt, 1, utils::UUID(), query::is_first_page::no, max_result_size, 0);
+
+    return proxy.cas(schema, request, make_lw_shared<query::read_command>(std::move(read_cmd)), partition_ranges,
             {timeout, std::move(permit), options.get_client_state(), tracing::trace_state_ptr()},
             db::consistency_level::LOCAL_SERIAL, db::consistency_level::LOCAL_QUORUM, timeout, timeout).then([] (bool is_applied) mutable {
                 return make_ready_future<>();
