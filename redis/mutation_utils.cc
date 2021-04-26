@@ -102,13 +102,14 @@ mutation make_mutation(service::storage_proxy& proxy, const redis_options& optio
     return m;
 }
 
-future<> write_strings(service::storage_proxy& proxy, redis::redis_options& options, bytes&& key, bytes&& data, long ttl, service_permit permit) {
+future<bool> write_strings(service::storage_proxy& proxy, redis::redis_options& options, bytes&& key, bytes&& data, long ttl, service_permit permit, smp_service_group& ssg) {
     // construct cas_request
     db::timeout_clock::time_point timeout = db::timeout_clock::now() + options.get_write_timeout();
     auto schema = get_schema(proxy, options.get_keyspace_name(), redis::STRINGs);
     const column_definition& column = *schema->get_column_definition(redis::DATA_COLUMN_NAME);
     auto pkey = partition_key::from_single_value(*schema, key);
-    auto partition_range = dht::partition_range::make_singular(dht::decorate_key(*schema, std::move(pkey)));
+    auto dk = dht::decorate_key(*schema, std::move(pkey));
+    auto partition_range = dht::partition_range::make_singular(dk);
     dht::partition_range_vector partition_ranges;
     partition_ranges.emplace_back(std::move(partition_range));
     auto write_consistency_level = options.get_write_consistency_level();
@@ -119,11 +120,45 @@ future<> write_strings(service::storage_proxy& proxy, redis::redis_options& opti
     const auto max_result_size = proxy.get_max_result_size(ps);
     query::read_command read_cmd(schema->id(), schema->version(), ps, 1, gc_clock::now(), std::nullopt, 1, utils::UUID(), query::is_first_page::no, max_result_size, 0);
 
-    return proxy.cas(schema, request, make_lw_shared<query::read_command>(std::move(read_cmd)), partition_ranges,
-            {timeout, std::move(permit), options.get_client_state(), tracing::trace_state_ptr()},
-            db::consistency_level::LOCAL_SERIAL, db::consistency_level::LOCAL_QUORUM, timeout, timeout).then([] (bool is_applied) mutable {
-                return make_ready_future<>();
-    });
+    service::client_state& client_state = options.get_client_state();
+    auto trace_state = tracing::trace_state_ptr();
+    auto desired_shard = service::storage_proxy::cas_shard(*schema, dk.token());
+    if (desired_shard == this_shard_id()) {
+        return proxy.cas(schema, request, make_lw_shared<query::read_command>(std::move(read_cmd)), partition_ranges,
+            {timeout, std::move(permit), client_state, trace_state},
+            db::consistency_level::LOCAL_SERIAL, db::consistency_level::LOCAL_QUORUM, timeout, timeout);
+    } else {
+        return proxy.container().invoke_on(desired_shard, ssg,
+                    [cs = client_state.move_to_other_shard(),
+                     dk = dk,
+                     ks = schema->ks_name(),
+                     cf = schema->cf_name(),
+                     gt =  tracing::global_trace_state_ptr(trace_state),
+                     permit = std::move(permit),
+                     request = std::move(request),
+                     read_cmd = std::move(read_cmd),
+                     partition_ranges = std::move(partition_ranges),
+                     timeout = std::move(timeout)]
+                    (service::storage_proxy& proxy) mutable {
+            return do_with(cs.get(), [&proxy, dk = std::move(dk), ks = std::move(ks), cf = std::move(cf),
+                                      trace_state = tracing::trace_state_ptr(gt),
+                                      permit = std::move(permit),
+                                      request = std::move(request),
+                                      read_cmd = std::move(read_cmd),
+                                      partition_ranges = std::move(partition_ranges),
+                                      timeout = std::move(timeout)]
+                                      (service::client_state& client_state) mutable {
+                auto schema = proxy.get_db().local().find_schema(ks, cf);
+                //FIXME: A corresponding FIXME can be found in transport/server.cc when a message must be bounced
+                // to another shard - once it is solved, this place can use a similar solution. Instead of passing
+                // empty_service_permit() to the background operation, the current permit's lifetime should be prolonged,
+                // so that it's destructed only after all background operations are finished as well.
+                return proxy.cas(schema, request, make_lw_shared<query::read_command>(std::move(read_cmd)), partition_ranges,
+                    {timeout, std::move(permit), client_state, trace_state},
+                    db::consistency_level::LOCAL_SERIAL, db::consistency_level::LOCAL_QUORUM, timeout, timeout);
+            });
+        });
+    }
 }
 
 

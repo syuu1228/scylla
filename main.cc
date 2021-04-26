@@ -1400,8 +1400,13 @@ int main(int ac, char** av) {
 
             static redis_service redis;
             if (cfg->redis_port() || cfg->redis_ssl_port()) {
-                with_scheduling_group(dbcfg.statement_scheduling_group, [proxy = std::ref(proxy), db = std::ref(db), auth_service = std::ref(auth_service), cfg] {
-                    return redis.init(proxy, db, auth_service, *cfg);
+                // Create an smp_service_group to be used for limiting the
+                // concurrency when forwarding Alternator request between
+                // shards - if necessary for LWT.
+                smp_service_group_config c;
+                smp_service_group ssg = create_smp_service_group(c).get0();
+                with_scheduling_group(dbcfg.statement_scheduling_group, [proxy = std::ref(proxy), db = std::ref(db), auth_service = std::ref(auth_service), cfg, ssg] {
+                    return redis.init(proxy, db, auth_service, *cfg, ssg);
                 }).get();
             }
 

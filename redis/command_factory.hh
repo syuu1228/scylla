@@ -34,6 +34,6 @@ class command_factory {
 public:
     command_factory() {}
     ~command_factory() {}
-    static seastar::future<redis_message> create_execute(service::storage_proxy&, request&, redis::redis_options&, service_permit);
+    static seastar::future<redis_message> create_execute(service::storage_proxy&, request&, redis::redis_options&, service_permit, smp_service_group);
 };
 }

@@ -31,9 +31,10 @@ namespace redis {
 
 distributed<query_processor> _the_query_processor;
 
-query_processor::query_processor(service::storage_proxy& proxy, distributed<database>& db)
+query_processor::query_processor(service::storage_proxy& proxy, distributed<database>& db, smp_service_group ssg)
         : _proxy(proxy)
         , _db(db)
+        , _ssg(ssg)
 {
 }
 
@@ -54,7 +55,7 @@ future<> query_processor::stop() {
 future<redis_message> query_processor::process(request&& req, redis::redis_options& opts, service_permit permit) {
     return do_with(std::move(req), [this, &opts, permit] (auto& req) {
         return with_gate(_pending_command_gate, [this, &req, &opts, permit] () mutable {
-            return command_factory::create_execute(_proxy, req, opts, permit);
+            return command_factory::create_execute(_proxy, req, opts, permit, _ssg);
         });
     });
 }

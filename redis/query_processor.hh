@@ -25,6 +25,7 @@
 #include <seastar/core/shared_ptr.hh>
 #include <seastar/core/gate.hh>
 #include <seastar/core/metrics_registration.hh>
+#include "seastarx.hh"
 
 class database;
 class service_permit;
@@ -43,10 +44,11 @@ class redis_message;
 class query_processor {
     service::storage_proxy& _proxy;
     seastar::sharded<database>& _db;
+    smp_service_group _ssg;
     seastar::metrics::metric_groups _metrics;
     seastar::gate _pending_command_gate;
 public:
-    query_processor(service::storage_proxy& proxy, seastar::sharded<database>& db);
+    query_processor(service::storage_proxy& proxy, seastar::sharded<database>& db, smp_service_group ssg);
 
     ~query_processor();
 
