@@ -40,6 +40,7 @@ Options:
   --sysconfdir /etc/sysconfig   specify sysconfig directory name
   --packaging               use install.sh for packaging
   --upgrade                 upgrade existing scylla installation (don't overwrite config files)
+  --debuginfo               install debuginfo
   --help                   this helpful message
 EOF
     exit 1
@@ -77,6 +78,7 @@ housekeeping=false
 nonroot=false
 packaging=false
 upgrade=false
+debuginfo=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -110,6 +112,10 @@ while [ $# -gt 0 ]; do
             ;;
         "--upgrade")
             upgrade=true
+            shift 1
+            ;;
+        "--debuginfo")
+            debuginfo=true
             shift 1
             ;;
         "--help")
@@ -469,6 +475,13 @@ for i in seastar/scripts/perftune.py seastar/scripts/seastar-addr2line; do
     relocate_python3 "$rprefix"/scripts "$i"
 done
 relocate_python3 "$rprefix"/scyllatop tools/scyllatop/scyllatop.py
+
+if $debuginfo; then
+    install -d -m755 "$rprefix"/libexec/.debug
+    cp -r ./libexec/.debug/* "$rprefix"/libexec/.debug
+    install -d -m755 "$rprefix"/node_exporter/.debug
+    cp -r ./node_exporter/.debug/* "$rprefix"/node_exporter/.debug
+fi
 
 if $nonroot; then
     sed -i -e "s#/var/lib/scylla#$rprefix#g" $rsysconfdir/scylla-server

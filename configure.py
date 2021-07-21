@@ -1730,8 +1730,12 @@ with open(buildfile_tmp, 'w') as f:
         rule copy
             command = cp --reflink=auto $in $out
             description = COPY $out
+        rule strip
+            command = scripts/strip.sh $in
         rule package
             command = scripts/create-relocatable-package.py --mode $mode $out
+        rule stripped_package
+            command = scripts/create-relocatable-package.py --stripped --mode $mode $out
         rule rpmbuild
             command = reloc/build_rpm.sh --reloc-pkg $in --builddir $out
         rule debbuild
@@ -1861,6 +1865,8 @@ with open(buildfile_tmp, 'w') as f:
                     f.write('build $builddir/{}/{}: {}.{} {} | {}\n'.format(mode, binary, regular_link_rule, mode, str.join(' ', objs), seastar_dep))
                     if has_thrift:
                         f.write('   libs =  {} {} $seastar_libs_{} $libs\n'.format(thrift_libs, maybe_static(args.staticboost, '-lboost_system'), mode))
+                    f.write(f'build $builddir/{mode}/{binary}.stripped: strip $builddir/{mode}/{binary}\n')
+                    f.write(f'build $builddir/{mode}/{binary}.debug: phony $builddir/{mode}/{binary}.stripped\n')
             for src in srcs:
                 if src.endswith('.cc'):
                     obj = '$builddir/' + mode + '/' + src.replace('.cc', '.o')
@@ -1982,15 +1988,19 @@ with open(buildfile_tmp, 'w') as f:
         f.write('  target = iotune\n'.format(**locals()))
         f.write(textwrap.dedent('''\
             build $builddir/{mode}/iotune: copy $builddir/{mode}/seastar/apps/iotune/iotune
+            build $builddir/{mode}/iotune.stripped: strip $builddir/{mode}/iotune
+            build $builddir/{mode}/iotune.debug: phony $builddir/{mode}/iotune.stripped
             ''').format(**locals()))
-        f.write('build $builddir/{mode}/dist/tar/{scylla_product}-{arch}-package.tar.gz: package $builddir/{mode}/scylla $builddir/{mode}/iotune $builddir/SCYLLA-RELEASE-FILE $builddir/SCYLLA-VERSION-FILE $builddir/debian/debian $builddir/node_exporter | always\n'.format(**locals()))
+        f.write('build $builddir/{mode}/dist/tar/{scylla_product}-unstripped-{arch}-package.tar.gz: package $builddir/{mode}/scylla $builddir/{mode}/iotune $builddir/SCYLLA-RELEASE-FILE $builddir/SCYLLA-VERSION-FILE $builddir/debian/debian $builddir/node_exporter/node_exporter | always\n'.format(**locals()))
+        f.write('  mode = {mode}\n'.format(**locals()))
+        f.write('build $builddir/{mode}/dist/tar/{scylla_product}-{arch}-package.tar.gz: stripped_package $builddir/{mode}/scylla.stripped $builddir/{mode}/scylla.debug $builddir/{mode}/iotune.stripped $builddir/{mode}/iotune.debug $builddir/node_exporter/node_exporter.stripped $builddir/node_exporter/node_exporter.debug | always\n'.format(**locals()))
         f.write('  mode = {mode}\n'.format(**locals()))
         f.write('build $builddir/{mode}/dist/tar/{scylla_product}-package.tar.gz: copy $builddir/{mode}/dist/tar/{scylla_product}-{arch}-package.tar.gz\n'.format(**locals()))
         f.write('  mode = {mode}\n'.format(**locals()))
 
-        f.write(f'build $builddir/dist/{mode}/redhat: rpmbuild $builddir/{mode}/dist/tar/{scylla_product}-{arch}-package.tar.gz\n')
+        f.write(f'build $builddir/dist/{mode}/redhat: rpmbuild $builddir/{mode}/dist/tar/{scylla_product}-unstripped-{arch}-package.tar.gz\n')
         f.write(f'  mode = {mode}\n')
-        f.write(f'build $builddir/dist/{mode}/debian: debbuild $builddir/{mode}/dist/tar/{scylla_product}-{arch}-package.tar.gz\n')
+        f.write(f'build $builddir/dist/{mode}/debian: debbuild $builddir/{mode}/dist/tar/{scylla_product}-unstripped-{arch}-package.tar.gz\n')
         f.write(f'  mode = {mode}\n')
         f.write(f'build dist-server-{mode}: phony $builddir/dist/{mode}/redhat $builddir/dist/{mode}/debian dist-server-compat\n')
         f.write(f'build dist-jmx-{mode}: phony $builddir/{mode}/dist/tar/{scylla_product}-jmx-package.tar.gz dist-jmx-rpm dist-jmx-deb\n')
@@ -2138,7 +2148,9 @@ with open(buildfile_tmp, 'w') as f:
         build $builddir/debian/debian: debian_files_gen | always
         rule extract_node_exporter
             command = tar -C build -xvpf {node_exporter_filename} && rm -rfv build/node_exporter && mv -v build/{node_exporter_dirname} build/node_exporter
-        build $builddir/node_exporter: extract_node_exporter | always
+        build $builddir/node_exporter/node_exporter: extract_node_exporter | always
+        build $builddir/node_exporter/node_exporter.stripped: strip $builddir/node_exporter/node_exporter
+        build $builddir/node_exporter/node_exporter.debug: phony $builddir/node_exporter/node_exporter.stripped
         rule print_help
              command = ./scripts/build-help.sh
         build help: print_help | always

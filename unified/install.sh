@@ -38,6 +38,7 @@ Options:
   --housekeeping           enable housekeeping service
   --nonroot                install Scylla without required root priviledge
   --sysconfdir /etc/sysconfig   specify sysconfig directory name
+  --debuginfo               install debuginfo
   --help                   this helpful message
 EOF
     exit 1
@@ -51,6 +52,7 @@ check_usermode_support() {
 root=/
 housekeeping=false
 nonroot=false
+debuginfo=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -77,6 +79,10 @@ while [ $# -gt 0 ]; do
         "--sysconfdir")
             sysconfdir="$2"
             shift 2
+            ;;
+        "--debuginfo")
+            debuginfo=true
+            shift 1
             ;;
         "--help")
             shift 1
@@ -140,6 +146,9 @@ fi
 if $nonroot; then
     scylla_args+=(--nonroot)
     args+=(--nonroot)
+fi
+if $debuginfo; then
+    scylla_args+=(--debuginfo)
 fi
 
 (cd $(readlink -f scylla); ./install.sh --root "$root" --prefix "$prefix" --python3 "$python3" --sysconfdir "$sysconfdir" ${scylla_args[@]})

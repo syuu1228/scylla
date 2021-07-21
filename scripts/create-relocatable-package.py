@@ -81,6 +81,8 @@ ap.add_argument('dest',
                 help='Destination file (tar format)')
 ap.add_argument('--mode', dest='mode', default='release',
                 help='Build mode (debug/release) to use')
+ap.add_argument('--stripped', action='store_true',
+                help='use stripped binaries')
 
 args = ap.parse_args()
 
@@ -127,7 +129,11 @@ ar.add('build/.relocatable_package_version', arcname='.relocatable_package_versi
 
 for exe in executables:
     basename = os.path.basename(exe)
-    ar.reloc_add(exe, arcname='libexec/' + basename)
+    if not args.stripped or not (os.path.exists(f'{exe}.stripped') and os.path.exists(f'{exe}.debug')):
+        ar.reloc_add(exe, arcname=f'libexec/{basename}')
+    else:
+        ar.reloc_add(f'{exe}.stripped', arcname=f'libexec/{basename}')
+        ar.reloc_add(f'{exe}.debug', arcname=f'libexec/.debug/{basename}.debug')
 for lib, libfile in libs.items():
     ar.reloc_add(libfile, arcname='libreloc/' + lib)
 if have_gnutls:
@@ -162,7 +168,13 @@ def exclude_submodules(tarinfo):
 ar.reloc_add('tools', filter=exclude_submodules)
 ar.reloc_add('scylla-gdb.py')
 ar.reloc_add('build/debian/debian', arcname='debian')
-ar.reloc_add('build/node_exporter', arcname='node_exporter')
+if not args.stripped:
+    ar.reloc_add('build/node_exporter/node_exporter', arcname='node_exporter/node_exporter')
+else:
+    ar.reloc_add('build/node_exporter/node_exporter.stripped', arcname='node_exporter/node_exporter')
+    ar.reloc_add('build/node_exporter/node_exporter.debug', arcname='node_exporter/.debug/node_exporter.debug')
+ar.reloc_add('build/node_exporter/LICENSE', arcname='node_exporter/LICENSE')
+ar.reloc_add('build/node_exporter/NOTICE', arcname='node_exporter/NOTICE')
 ar.reloc_add('ubsan-suppressions.supp')
 
 # Complete the tar output, and wait for the gzip process to complete
